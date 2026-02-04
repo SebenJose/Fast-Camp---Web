@@ -1,0 +1,18 @@
+# Dependências
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build
+dist/
+build/
+
+# Logs e Sistema
+*.log
+.DS_Store
+
+# IDE
+.vscode/
+
+# Env
+.env
