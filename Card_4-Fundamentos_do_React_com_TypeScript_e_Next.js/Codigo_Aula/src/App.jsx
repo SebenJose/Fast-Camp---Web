@@ -26,33 +26,47 @@ export default App;
 
 import Tasks from "./components/Tasks";
 import AddTask from "./components/AddTask";
-import { useState } from "react";
-import {v4} from "uuid";
+import { useEffect, useState } from "react";
+import { v4 } from "uuid";
+import Title from "./components/Title";
 
 function App() {
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: "Estudar programação",
-      description:
-        "Estudar programação para se tornar um desenvolvedor full stack.",
-      isCompleted: false,
-    },
-    {
-      id: 2,
-      title: "Estudar inglês",
-      description:
-        "Estudar inglês para melhorar a comunicação e o desempenho profissional.",
-      isCompleted: false,
-    },
-    {
-      id: 3,
-      title: "Estudar matemática",
-      description:
-        "Estudar matemática para aprimorar o raciocínio lógico e resolver problemas complexos.",
-      isCompleted: false,
-    },
-  ]);
+  const [tasks, setTasks] = useState(
+    JSON.parse(localStorage.getItem("tasks")) || [],
+  );
+
+  useEffect(() => {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }, [tasks]);
+
+  // useEffect(() => {
+  //   const fetchTasks = async () => {
+  //     // CHAMAR A API
+  //     try {
+  //       const response = await fetch(
+  //         "https://jsonplaceholder.typicode.com/todos?_limit=10",
+  //         { method: "GET" },
+  //       );
+
+  //       // PEGAR OS DADOS QUE ELA RETORNA
+  //       const data = await response.json();
+
+  //       // ARMAZENAR/PERSISTIR ESSES DADOS NO STATE
+  //       const formatted = data.map((t) => ({
+  //         id: t.id,
+  //         title: t.title,
+  //         description: t.description || "",
+  //         isCompleted: t.completed || false,
+  //       }));
+
+  //       setTasks(formatted);
+  //     } catch (error) {
+  //       console.error("Erro ao buscar tarefas:", error);
+  //     }
+  //   };
+
+  //   fetchTasks();
+  // }, []);
 
   function onTaskClick(taskId) {
     const newTasks = tasks.map((task) => {
@@ -83,9 +97,9 @@ function App() {
   return (
     <div className="w-screen h-screen bg-slate-500 flex justify-center p-6">
       <div className="w-[500px] space-y-4">
-        <h1 className="text-3xl text-slate-100 font-bold text-center">
+        <Title>
           Gerenciador de Tarefas
-        </h1>
+        </Title>
         <AddTask onAddTaskSubmit={onAddTaskSubmit} />
         <Tasks
           tasks={tasks}
