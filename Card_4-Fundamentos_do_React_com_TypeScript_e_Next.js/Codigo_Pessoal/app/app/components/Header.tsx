@@ -14,13 +14,8 @@ export default function Header() {
             </Link>
           </li>
           <li>
-            <Link href="/about" className="hover:text-[#E67E22]">
+            <Link href="/sobre" className="hover:text-[#E67E22]">
               Sobre
-            </Link>
-          </li>
-          <li>
-            <Link href="/contact" className="hover:text-[#E67E22]">
-              Contato
             </Link>
           </li>
         </ul>

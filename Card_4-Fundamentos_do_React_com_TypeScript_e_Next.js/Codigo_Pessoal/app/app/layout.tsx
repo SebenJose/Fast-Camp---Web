@@ -8,7 +8,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="bg-[#7CB342] min-h-screen">
+      <body className="min-h-screen bg-linear-to-br from-[#628141] to-[#40513B] antialiased">
         <Header />
         {children}
       </body>
