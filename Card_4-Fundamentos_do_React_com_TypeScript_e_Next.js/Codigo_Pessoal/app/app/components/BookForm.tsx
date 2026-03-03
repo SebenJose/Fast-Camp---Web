@@ -1,16 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { Book } from "../types/book";
+import { fetchBookCover } from "../services/googleBooks";
 
 interface BookFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddBook: (book: {
-    id: number;
-    title: string;
-    rating: number;
-    coverUrl?: string;
-  }) => void;
+  onAddBook: (book: Book) => void;
   title?: string;
   placeholder?: string;
   isFutureBook?: boolean;
@@ -36,34 +33,19 @@ export default function BookForm({
     }
 
     setIsLoading(true);
-    let coverUrl = undefined;
 
-    try {
-      const response = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(bookTitle)}&maxResults=1`,
-      );
-      const data = await response.json();
+    const coverUrl = await fetchBookCover(bookTitle);
 
-      if (data.items && data.items.length > 0) {
-        const imageLink = data.items[0].volumeInfo?.imageLinks?.thumbnail;
-        if (imageLink) {
-          coverUrl = imageLink.replace("http:", "https:");
-        }
-      }
-    } catch (error) {
-      console.error("Erro ao buscar a capa do livro:", error);
-    } finally {
-      onAddBook({
-        id: Date.now(),
-        title: bookTitle,
-        rating: 0,
-        coverUrl,
-      });
+    onAddBook({
+      id: Date.now(),
+      title: bookTitle,
+      rating: 0,
+      coverUrl,
+    });
 
-      setBookTitle("");
-      setIsLoading(false);
-      onClose();
-    }
+    setBookTitle("");
+    setIsLoading(false);
+    onClose();
   };
 
   return (
