@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Book } from "../types/book";
 import { fetchBookCover } from "../services/googleBooks";
+import toast from "react-hot-toast";
 
 interface BookFormProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export default function BookForm({
     e.preventDefault();
 
     if (!bookTitle.trim()) {
-      alert("Por favor, insira o nome do livro");
+      toast.error("Por favor, insira o nome do livro");
       return;
     }
 
@@ -36,8 +37,14 @@ export default function BookForm({
 
     const coverUrl = await fetchBookCover(bookTitle);
 
+    if (!coverUrl) {
+      toast.error("Não encontramos a capa, mas o livro foi adicionado!");
+    } else {
+      toast.success("Livro adicionado com sucesso!");
+    }
+
     onAddBook({
-      id: Date.now(),
+      id: crypto.randomUUID(),
       title: bookTitle,
       rating: 0,
       coverUrl,

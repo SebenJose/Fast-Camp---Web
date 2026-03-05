@@ -3,19 +3,17 @@
 import { useState } from "react";
 
 interface StarRatingProps {
-  initialRating: number;
+  rating: number;
   onRatingChange: (rating: number) => void;
 }
 
 export default function StarRating({
-  initialRating,
+  rating,
   onRatingChange,
 }: StarRatingProps) {
-  const [rating, setRating] = useState(initialRating);
   const [hoverRating, setHoverRating] = useState(0);
 
   const handleStarClick = (star: number) => {
-    setRating(star);
     onRatingChange(star);
   };
 
