@@ -1,5 +1,5 @@
-import Sobre from "../screens/Sobre"
+import Sobre from "@/screens/Sobre";
 
 export default function Page() {
-  return <Sobre />
+  return <Sobre />;
 }

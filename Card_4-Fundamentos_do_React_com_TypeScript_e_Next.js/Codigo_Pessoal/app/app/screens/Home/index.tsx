@@ -1,4 +1,4 @@
-import { BookShelf } from "../../components";
+import { BookShelf, FutureBookShelf } from "@/components";
 
 export default function HomeScreen() {
   return (
@@ -11,6 +11,7 @@ export default function HomeScreen() {
       </p>
 
       <BookShelf />
+      <FutureBookShelf />
     </main>
   );
 }

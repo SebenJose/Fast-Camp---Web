@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import StarRating from "./StarRating";
+import StarRating from "@/components/StarRating";
 
 interface BookCardProps {
   id: number | string;
