@@ -1,25 +1,22 @@
 "use client";
 
 import Image from "next/image";
-import StarRating from "@/components/StarRating";
 
-interface BookCardProps {
+interface FutureBookCardProps {
   id: number | string;
   title: string;
-  rating: number;
   coverUrl?: string;
-  onRatingChange: (id: number | string, rating: number) => void;
   onDelete: (id: number | string) => void;
+  onMarkAsRead: (id: number | string) => void;
 }
 
-export default function BookCard({
+export default function FutureBookCard({
   id,
   title,
-  rating,
   coverUrl,
-  onRatingChange,
   onDelete,
-}: BookCardProps) {
+  onMarkAsRead,
+}: FutureBookCardProps) {
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden hover:-translate-y-1 transition-all duration-300 max-w-[150px] w-full flex flex-col">
       {coverUrl ? (
@@ -48,16 +45,14 @@ export default function BookCard({
           {title}
         </h3>
 
-        <div className="mb-3 flex justify-center scale-90 origin-center">
-          <StarRating
-            rating={rating}
-            onRatingChange={(newRating) => onRatingChange(id, newRating)}
-          />
-        </div>
-        <p className="text-xs text-gray-600 mb-2 text-center">
-          {rating > 0 ? `Nota: ${rating}/5` : "Sem nota"}
-        </p>
-        <div className="mt-auto">
+        <p className="text-xs text-gray-500 mb-2 text-center">Próximo a ler</p>
+        <div className="flex flex-col gap-2 mt-auto">
+          <button
+            onClick={() => onMarkAsRead(id)}
+            className="w-full border border-primary text-primary hover:bg-[#f0f8e8] font-semibold py-1 rounded transition-colors text-xs"
+          >
+            Já li
+          </button>
           <button
             onClick={() => onDelete(id)}
             className="w-full border border-red-400 text-red-500 hover:bg-red-50 font-semibold py-1 rounded transition-colors text-xs"

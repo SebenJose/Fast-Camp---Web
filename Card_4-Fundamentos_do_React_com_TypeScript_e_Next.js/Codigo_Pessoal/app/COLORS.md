@@ -2,18 +2,18 @@
 
 ## Cores do Projeto
 
-| Nome         | Hex     | Uso                          |
-| ------------ | ------- | ---------------------------- |
-| Verde Escuro | #40513B | Header, elementos principais |
-| Verde Médio  | #628141 | Background principal         |
-| Bege/Creme   | #E5D9B6 | Textos, destaques            |
-| Laranja      | #E67E22 | Hover, CTA, destaque         |
+| Nome         | Hex           | Uso                          |
+| ------------ | ------------- | ---------------------------- |
+| Verde Escuro | #primary-dark | Header, elementos principais |
+| Verde Médio  | #primary      | Background principal         |
+| Bege/Creme   | #cream        | Textos, destaques            |
+| Laranja      | #accent       | Hover, CTA, destaque         |
 
 ## Referência Rápida
 
 ```
-Verde Escuro:  #40513B
-Verde Médio:   #628141
-Bege/Creme:    #E5D9B6
-Laranja:       #E67E22
+Verde Escuro:  #primary-dark
+Verde Médio:   #primary
+Bege/Creme:    #cream
+Laranja:       #accent
 ```
