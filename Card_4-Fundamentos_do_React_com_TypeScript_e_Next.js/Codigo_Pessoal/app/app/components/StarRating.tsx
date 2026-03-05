@@ -29,9 +29,7 @@ export default function StarRating({
         >
           <span
             className={`text-3xl ${
-              star <= (hoverRating || rating)
-                ? "text-[#E67E22]"
-                : "text-gray-400"
+              star <= (hoverRating || rating) ? "text-accent" : "text-gray-400"
             }`}
           >
             ★

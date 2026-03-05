@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className="min-h-screen bg-linear-to-br from-[#628141] to-[#40513B] antialiased">
+      <body className="min-h-screen bg-linear-to-br from-primary to-primary-dark antialiased">
         <Header />
         <Toaster position="top-center" />
         {children}

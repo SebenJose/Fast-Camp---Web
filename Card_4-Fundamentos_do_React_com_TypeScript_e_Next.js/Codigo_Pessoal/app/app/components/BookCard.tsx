@@ -33,8 +33,8 @@ export default function BookCard({
           />
         </div>
       ) : (
-        <div className="w-full h-48 bg-[#E5D9B6]/40 flex items-center justify-center shrink-0 border-b border-[#E5D9B6]">
-          <span className="text-[#628141] text-xs font-medium px-4 text-center">
+        <div className="w-full h-48 bg-cream/40 flex items-center justify-center shrink-0 border-b border-cream">
+          <span className="text-primary text-xs font-medium px-4 text-center">
             Capa indisponível
           </span>
         </div>
@@ -42,7 +42,7 @@ export default function BookCard({
 
       <div className="p-3 flex flex-col flex-1">
         <h3
-          className="text-base font-bold text-[#40513B] mb-2 truncate"
+          className="text-base font-bold text-primary-dark mb-2 truncate"
           title={title}
         >
           {title}

@@ -80,7 +80,7 @@ export default function BookShelf() {
         </div>
       ) : (
         <div className="text-center py-12">
-          <p className="text-[#E5D9B6] text-lg mb-6">
+          <p className="text-cream text-lg mb-6">
             Nenhum livro adicionado ainda. Clique no botão + para começar!
           </p>
           <AddBookCard onOpenForm={() => setIsFormOpen(true)} />
@@ -95,10 +95,10 @@ export default function BookShelf() {
 
       {/* Seção Livros a Ler */}
       <div className="mt-16">
-        <h2 className="text-5xl font-bold text-[#E5D9B6] mb-3 drop-shadow-lg">
+        <h2 className="text-5xl font-bold text-cream mb-3 drop-shadow-lg">
           Livros a Ler
         </h2>
-        <p className="text-xl text-[#E5D9B6] drop-shadow-md opacity-95 mb-8">
+        <p className="text-xl text-cream drop-shadow-md opacity-95 mb-8">
           Sua lista de desejos
         </p>
 
@@ -118,7 +118,7 @@ export default function BookShelf() {
           </div>
         ) : (
           <div className="text-center py-12">
-            <p className="text-[#E5D9B6] text-lg mb-6">
+            <p className="text-cream text-lg mb-6">
               Nenhum livro na sua lista de desejos. Clique no botão + para
               adicionar!
             </p>

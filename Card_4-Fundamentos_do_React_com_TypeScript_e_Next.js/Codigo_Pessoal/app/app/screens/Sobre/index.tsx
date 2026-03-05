@@ -4,8 +4,8 @@ export default function Sobre() {
   return (
     <main className="min-h-screen flex items-center justify-center p-8">
       {/* A "Folha de Papel" centralizada */}
-      <div className="bg-[#E5D9B6] text-gray-900 max-w-3xl w-full p-10 md:p-16 rounded-xl shadow-2xl space-y-6">
-        <h1 className="text-4xl font-bold text-[#40513B] mb-8 text-center border-b-2 border-[#628141]/30 pb-4">
+      <div className="bg-cream text-gray-900 max-w-3xl w-full p-10 md:p-16 rounded-xl shadow-2xl space-y-6">
+        <h1 className="text-4xl font-bold text-primary-dark mb-8 text-center border-b-2 border-primary/30 pb-4">
           Sobre a Biblioteca
         </h1>
 
@@ -30,7 +30,7 @@ export default function Sobre() {
             para enriquecer a experiência visual da aplicação com capas reais.
           </p>
 
-          <p className="font-medium text-center text-[#40513B] mt-8">
+          <p className="font-medium text-center text-primary-dark mt-8">
             Sinta-se à vontade para adicionar seus livros favoritos e organizar
             sua fila de leitura!
           </p>
@@ -39,7 +39,7 @@ export default function Sobre() {
         <div className="pt-10 flex justify-center">
           <Link
             href="/"
-            className="bg-[#40513B] hover:bg-[#628141] text-[#E5D9B6] font-semibold py-3 px-8 rounded-lg transition-all shadow-lg hover:-translate-y-1 hover:shadow-xl"
+            className="bg-primary-dark hover:bg-primary text-cream font-semibold py-3 px-8 rounded-lg transition-all shadow-lg hover:-translate-y-1 hover:shadow-xl"
           >
             Voltar para a Inicial
           </Link>
