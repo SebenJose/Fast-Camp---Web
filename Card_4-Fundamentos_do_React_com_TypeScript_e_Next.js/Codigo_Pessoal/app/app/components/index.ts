@@ -1,3 +1,4 @@
+// Exportando os componentes para facilitar a importação em outras partes do aplicativo
 export { default as BookCard } from "./BookCard";
 export { default as BookForm } from "./BookForm";
 export { default as AddBookCard } from "./AddBookCard";
