@@ -37,6 +37,12 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+
+    /* Cores Customizadas do Projeto */
+    --color-red: 0 100% 55.1%;
+    --color-cream-light: 44 97% 95.5%;
+    --color-cream-medium: 44 52% 80%;
+    --color-black: 0 0% 0%;
 }
 
 .dark {
