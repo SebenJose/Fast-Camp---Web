@@ -1,1 +1,1 @@
-// TypeScript Types and Interfaces
+export * from "./news"

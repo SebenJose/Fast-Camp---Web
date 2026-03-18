@@ -16,3 +16,5 @@ export {
   SheetTitle,
   SheetTrigger,
 } from "./sheet"
+export { Avatar, AvatarImage, AvatarFallback } from "./avatar"
+export { Skeleton } from "./skeleton"

@@ -3,8 +3,6 @@
 import { useState } from "react"
 import {
   Menu,
-  LogIn,
-  LogOut,
   Home,
   LayoutDashboard,
   FileText,
@@ -18,16 +16,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     label: "Home",
     href: "/",
     icon: Home,
-  },
-  {
-    label: "Sign-in",
-    href: "/sign-in",
-    icon: LogIn,
-  },
-  {
-    label: "Sign-out",
-    href: "/sign-out",
-    icon: LogOut,
   },
   {
     label: "Dashboard",
