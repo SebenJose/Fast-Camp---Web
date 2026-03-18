@@ -6,7 +6,7 @@ interface NewsHeaderProps {
 
 export function NewsHeader({ selectedId }: NewsHeaderProps) {
   return (
-    <header className="shrink-0 mb-6">
+    <header className="mb-6 shrink-0">
       <h1 className="text-4xl font-bold tracking-tight text-foreground md:text-5xl">
         Noticiário
       </h1>

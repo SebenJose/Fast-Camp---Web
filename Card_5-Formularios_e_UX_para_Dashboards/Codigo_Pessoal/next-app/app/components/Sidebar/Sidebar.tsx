@@ -35,13 +35,11 @@ export function Sidebar() {
     <>
       {/* Mobile Menu Trigger */}
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger className="md:hidden">
-          <button
-            className="fixed top-6 left-6 z-40 flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar shadow-lg hover:bg-sidebar/90 md:hidden"
-            aria-label="Abrir menu"
-          >
-            <Menu size={24} className="text-sidebar-foreground" />
-          </button>
+        <SheetTrigger
+          className="fixed top-6 left-6 z-40 flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar shadow-lg hover:bg-sidebar/90 md:hidden"
+          aria-label="Abrir menu"
+        >
+          <Menu className="h-5 w-5 text-sidebar-foreground" />
         </SheetTrigger>
         <SheetContent side="left" className="w-56 bg-sidebar p-0">
           <SidebarContent
