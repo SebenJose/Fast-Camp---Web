@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
+import { AuthProvider } from "@/app/hooks/useAuth"
 
 function ThemeProvider({
   children,
@@ -16,7 +17,7 @@ function ThemeProvider({
       {...props}
     >
       <ThemeHotkey />
-      {children}
+      <AuthProvider>{children}</AuthProvider>
     </NextThemesProvider>
   )
 }

@@ -2,6 +2,7 @@ import { Geist_Mono, Figtree } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/app/components"
+import { Toaster } from "@/app/components/ui/sonner"
 import { cn } from "@/app/lib/utils"
 
 import { Metadata } from "next"
@@ -36,6 +37,7 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>{children}</ThemeProvider>
+        <Toaster position="top-center" richColors />
       </body>
     </html>
   )

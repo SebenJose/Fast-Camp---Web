@@ -18,3 +18,7 @@ export {
 } from "./sheet"
 export { Avatar, AvatarImage, AvatarFallback } from "./avatar"
 export { Skeleton } from "./skeleton"
+export * from "./input"
+export * from "./label"
+export * from "./tabs"
+export * from "./dialog"
