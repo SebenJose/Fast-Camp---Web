@@ -76,7 +76,6 @@ export function NewsCarousel({
           </CarouselItem>
         ))}
       </CarouselContent>
-      {/* Exibe controls apenas se for horizontal e em telas maiores que md, ou se preferir em todas */}
       <div className={cn("animate-in fade-in-0")}>
         <CarouselPrevious
           className={cn(

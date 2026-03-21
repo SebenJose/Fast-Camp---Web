@@ -37,7 +37,6 @@ export function NewsSection({ news }: NewsSectionProps) {
         </div>
       </div>
 
-      {/* Selected Article Viewer */}
       {selectedArticle && (
         <div className="z-30 flex h-full w-full flex-1 animate-in flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm duration-500 fade-in slide-in-from-right-8">
           <div

@@ -6,10 +6,8 @@ export function NewsSkeleton() {
     <div className="relative flex h-full min-h-0 w-full flex-col gap-6 transition-all duration-500 ease-in-out md:flex-row">
       <div className="flex h-full w-full flex-col gap-6 transition-all duration-500 ease-in-out">
         <NewsHeader selectedId={null} />
-        {/* Skeleton Carousel Wrapper */}
         <div className="min-h-0 w-full flex-1 overflow-hidden">
           <div className="flex h-full gap-4">
-            {/* Mocking 3 visible cards of the Carousel */}
             {[1, 2, 3].map((card) => (
               <div
                 key={`skeleton-${card}`}

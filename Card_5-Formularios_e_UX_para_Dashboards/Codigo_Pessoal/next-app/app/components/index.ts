@@ -1,5 +1,7 @@
 export { ThemeProvider } from "./theme-provider"
 export { Sidebar } from "./Sidebar"
+export { SurveyForm } from "./SurveyForm"
+export { Dashboard } from "./Dashboard"
 export * from "./News"
 export * from "./Auth"
 export * from "./ui"

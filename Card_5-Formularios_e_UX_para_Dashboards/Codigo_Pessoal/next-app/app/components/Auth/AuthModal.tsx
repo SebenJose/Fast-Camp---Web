@@ -42,7 +42,7 @@ export function AuthModal({ children }: AuthModalProps) {
         showCloseButton={false}
         className="border border-white/20 bg-background/90 p-6 shadow-2xl backdrop-blur-md sm:max-w-[425px] sm:rounded-2xl"
       >
-        <DialogClose className="absolute top-3 right-3 z-50 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+        <DialogClose className="absolute top-1 right-1 z-50 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
           <X size={18} />
           <span className="sr-only">Fechar</span>
         </DialogClose>

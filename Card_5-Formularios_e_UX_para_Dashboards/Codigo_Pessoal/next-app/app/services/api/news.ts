@@ -35,7 +35,6 @@ export async function getIBGENews(limit = 5): Promise<INewsArticle[]> {
     const data: IBGEResponse = await res.json()
 
     return data.items.map((item) => {
-      // The images field comes as a stringified JSON
       let imageUrl = ""
       try {
         const imageMetadata = JSON.parse(item.imagens)

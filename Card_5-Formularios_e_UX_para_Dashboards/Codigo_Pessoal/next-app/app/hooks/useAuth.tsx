@@ -9,8 +9,6 @@ import {
 } from "react"
 import { AuthService } from "@/app/services"
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
 export interface IUser {
   name: string
   email: string
@@ -22,8 +20,6 @@ export interface ISession {
   email: string
 }
 
-// ─── Context ─────────────────────────────────────────────────────────────────
-
 interface AuthContextValue {
   session: ISession | null
   signIn: (email: string, password: string) => string | null
@@ -33,10 +29,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-// ─── Provider ────────────────────────────────────────────────────────────────
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Lazy initializer — runs once on mount, before first render
   const [session, setSession] = useState<ISession | null>(() => {
     if (typeof window === "undefined") return null
     return AuthService.getSession()
@@ -82,8 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   )
 }
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext)

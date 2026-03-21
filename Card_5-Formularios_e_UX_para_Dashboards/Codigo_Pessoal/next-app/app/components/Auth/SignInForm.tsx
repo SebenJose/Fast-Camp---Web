@@ -15,7 +15,10 @@ import {
   Button,
 } from "@/app/components/ui"
 import { useAuth } from "@/app/hooks"
-import { signInSchema, type SignInFields } from "@/app/lib/validations/auth.schema"
+import {
+  signInSchema,
+  type SignInFields,
+} from "@/app/lib/validations/auth.schema"
 
 interface SignInFormProps {
   onSuccess: () => void
@@ -31,6 +34,7 @@ export function SignInForm({ onSuccess }: SignInFormProps) {
     reset,
   } = useForm<SignInFields>({
     resolver: zodResolver(signInSchema),
+    defaultValues: { email: "", password: "" },
   })
 
   const onSubmit = (data: SignInFields) => {
@@ -54,7 +58,7 @@ export function SignInForm({ onSuccess }: SignInFormProps) {
           Insira o seu e-mail e senha para acessar o painel administrativo.
         </CardDescription>
       </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit)} autoComplete="off">
         <CardContent className="space-y-4 pb-2">
           <div className="space-y-2">
             <Label htmlFor="email-signin">E-mail</Label>
@@ -81,6 +85,8 @@ export function SignInForm({ onSuccess }: SignInFormProps) {
             <Input
               id="password-signin"
               type="password"
+              placeholder="••••••••"
+              autoComplete="new-password"
               {...register("password")}
             />
             {errors.password && (

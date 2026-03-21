@@ -1,7 +1,7 @@
 import { Geist_Mono, Figtree } from "next/font/google"
 
 import "./globals.css"
-import { ThemeProvider } from "@/app/components"
+import { ThemeProvider, Sidebar } from "@/app/components"
 import { Toaster } from "@/app/components/ui/sonner"
 import { cn } from "@/app/lib/utils"
 
@@ -16,7 +16,7 @@ const fontMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "FastCamp Dashboard",
-  description: "Plataforma Administrativa FastCamp - UI/UX e Formulários",
+  description: "Plataforma Administrativa FastCamp",
 }
 
 export default function RootLayout({
@@ -36,7 +36,17 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <div className="flex h-screen w-full bg-secondary">
+            <Sidebar />
+
+            <main className="flex h-full flex-1 flex-col overflow-auto p-6 transition-all md:p-10">
+              {/* Mobile Header Spacing - Common to all screens */}
+              <div className="h-16 shrink-0 md:hidden" />
+              {children}
+            </main>
+          </div>
+        </ThemeProvider>
         <Toaster position="top-center" richColors />
       </body>
     </html>

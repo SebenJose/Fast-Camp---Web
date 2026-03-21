@@ -15,7 +15,10 @@ import {
   Button,
 } from "@/app/components/ui"
 import { useAuth } from "@/app/hooks"
-import { signUpSchema, type SignUpFields } from "@/app/lib/validations/auth.schema"
+import {
+  signUpSchema,
+  type SignUpFields,
+} from "@/app/lib/validations/auth.schema"
 
 interface SignUpFormProps {
   onSuccess: () => void
@@ -31,6 +34,7 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
     reset,
   } = useForm<SignUpFields>({
     resolver: zodResolver(signUpSchema),
+    defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
   })
 
   const onSubmit = (data: SignUpFields) => {
@@ -83,6 +87,8 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
             <Input
               id="password-signup"
               type="password"
+              placeholder="••••••••"
+              autoComplete="new-password"
               {...register("password")}
             />
             {errors.password && (
@@ -96,6 +102,8 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
             <Input
               id="confirm-password-signup"
               type="password"
+              placeholder="••••••••"
+              autoComplete="new-password"
               {...register("confirmPassword")}
             />
             {errors.confirmPassword && (
