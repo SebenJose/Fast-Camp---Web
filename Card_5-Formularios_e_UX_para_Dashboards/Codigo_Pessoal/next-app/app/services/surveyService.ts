@@ -1,12 +1,11 @@
 import { mockSurveys } from "@/app/data/mocks/surveys"
 import type { SurveyInput, SurveyResponse } from "@/app/types/survey"
+import { localStore } from "@/app/lib/storage"
 
 const STORAGE_KEY = "fastcamp_survey_persistence"
 
 function getInitialSurveys(): SurveyResponse[] {
-  if (typeof window === "undefined") return [...mockSurveys]
-
-  const stored = localStorage.getItem(STORAGE_KEY)
+  const stored = localStore.getItem(STORAGE_KEY)
   if (stored) {
     try {
       const parsed = JSON.parse(stored)
@@ -22,7 +21,7 @@ function getInitialSurveys(): SurveyResponse[] {
     }
   }
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(mockSurveys))
+  localStore.setItem(STORAGE_KEY, JSON.stringify(mockSurveys))
   return [...mockSurveys]
 }
 
@@ -46,8 +45,9 @@ export const surveyService = {
         }
         surveys = [newSurvey, ...surveys]
 
+        localStore.setItem(STORAGE_KEY, JSON.stringify(surveys))
         if (typeof window !== "undefined") {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(surveys))
+          window.dispatchEvent(new Event("surveysUpdated"))
         }
 
         resolve(newSurvey)

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { surveyService } from "@/app/services/surveyService"
 import { SurveyResponse } from "@/app/types/survey"
 
@@ -6,18 +6,56 @@ export function useDashboardData() {
   const [data, setData] = useState<SurveyResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  const refetch = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const surveys = await surveyService.getSurveys()
+      setData(surveys)
+    } catch (error) {
+      console.error("Erro ao revalidar dados:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     let isMounted = true
-    surveyService.getSurveys().then((surveys) => {
-      if (isMounted) {
-        setData(surveys)
-        setIsLoading(false)
+
+    const loadData = async () => {
+      try {
+        const surveys = await surveyService.getSurveys()
+        if (isMounted) setData(surveys)
+      } catch (error) {
+        console.error("Erro ao carregar dados do dashboard:", error)
+      } finally {
+        if (isMounted) setIsLoading(false)
       }
-    })
+    }
+
+    loadData()
+
     return () => {
       isMounted = false
     }
   }, [])
+
+  useEffect(() => {
+    const interval = setInterval(
+      () => {
+        refetch()
+      },
+      5 * 60 * 1000 //formula para calcular 5 minutos em milissegundos
+    )
+
+    return () => clearInterval(interval)
+  }, [refetch])
+
+  useEffect(() => {
+    const handleUpdate = () => refetch()
+    window.addEventListener("surveysUpdated", handleUpdate)
+
+    return () => window.removeEventListener("surveysUpdated", handleUpdate)
+  }, [refetch])
 
   const frequencyData = useMemo(() => {
     const counts: Record<string, number> = {
@@ -80,11 +118,20 @@ export function useDashboardData() {
     return chartData
   }, [data])
 
+  const dailyReadingPercentage = useMemo(() => {
+    if (data.length === 0) return 0
+    const dailyCount =
+      frequencyData.find((f) => f.frequency === "Diariamente")?.count || 0
+    return Math.round((dailyCount / data.length) * 100)
+  }, [frequencyData, data.length])
+
   return {
     data,
     isLoading,
     frequencyData,
     themeData,
     timeData,
+    refetch,
+    dailyReadingPercentage,
   }
 }

@@ -7,8 +7,14 @@ import { Skeleton } from "@/app/components/ui"
 import { ProtectedRoute } from "../Auth"
 
 export function Dashboard() {
-  const { data, isLoading, frequencyData, themeData, timeData } =
-    useDashboardData()
+  const {
+    data,
+    isLoading,
+    frequencyData,
+    themeData,
+    timeData,
+    dailyReadingPercentage,
+  } = useDashboardData()
 
   return (
     <ProtectedRoute>
@@ -37,6 +43,7 @@ export function Dashboard() {
             frequencyData={frequencyData}
             themeData={themeData}
             timeData={timeData}
+            dailyReadingPercentage={dailyReadingPercentage}
           />
         )}
       </div>

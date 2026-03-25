@@ -37,8 +37,8 @@ export function SignInForm({ onSuccess }: SignInFormProps) {
     defaultValues: { email: "", password: "" },
   })
 
-  const onSubmit = (data: SignInFields) => {
-    const error = signIn(data.email, data.password)
+  const onSubmit = async (data: SignInFields) => {
+    const error = await signIn(data.email, data.password)
     if (error) {
       toast.error(error)
     } else {

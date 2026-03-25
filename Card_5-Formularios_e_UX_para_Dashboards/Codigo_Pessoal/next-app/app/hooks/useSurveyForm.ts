@@ -22,14 +22,13 @@ export function useSurveyForm() {
   })
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout
     if (status === "success") {
-      timeoutId = setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         setStatus("idle")
       }, 3000)
-    }
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId)
+      return () => {
+        clearTimeout(timeoutId)
+      }
     }
   }, [status])
 

@@ -27,6 +27,12 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/app/components/ui/chart"
+import type {
+  SurveyResponse,
+  FrequencyData,
+  ThemeData,
+  TimeData,
+} from "@/app/types"
 
 const pieConfig = {
   count: {
@@ -73,10 +79,11 @@ const lineConfig = {
 } satisfies ChartConfig
 
 interface DashboardViewProps {
-  data: Record<string, unknown>[]
-  frequencyData: Record<string, unknown>[]
-  themeData: Record<string, unknown>[]
-  timeData: Record<string, unknown>[]
+  data: SurveyResponse[]
+  frequencyData: FrequencyData[]
+  themeData: ThemeData[]
+  timeData: TimeData[]
+  dailyReadingPercentage: number
   hideHeader?: boolean
 }
 
@@ -85,6 +92,7 @@ export function DashboardView({
   frequencyData,
   themeData,
   timeData,
+  dailyReadingPercentage,
   hideHeader = false,
 }: DashboardViewProps) {
   return (
@@ -141,13 +149,8 @@ export function DashboardView({
           </CardContent>
           <CardFooter className="flex-col gap-2 text-center text-sm">
             <div className="flex items-center gap-2 leading-none font-medium">
-              {Math.round(
-                (((frequencyData.find((f) => f.frequency === "Diariamente")
-                  ?.count as number) || 0) /
-                  (data.length || 1)) *
-                  100
-              )}
-              % leem diariamente <TrendingUp className="h-4 w-4" />
+              {dailyReadingPercentage}% leem diariamente{" "}
+              <TrendingUp className="h-4 w-4" />
             </div>
           </CardFooter>
         </Card>
@@ -186,7 +189,7 @@ export function DashboardView({
           </CardContent>
           <CardFooter className="flex-col items-start gap-2 text-sm">
             <div className="flex gap-2 leading-none font-medium">
-              Tema {themeData[0]?.theme as string} é o mais popular no momento
+              Tema {themeData[0]?.theme} é o mais popular no momento
             </div>
           </CardFooter>
         </Card>
