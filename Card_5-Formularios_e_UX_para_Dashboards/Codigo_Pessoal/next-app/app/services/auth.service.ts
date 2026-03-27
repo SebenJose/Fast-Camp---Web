@@ -1,9 +1,10 @@
 import type { ISession, IUser } from "@/app/types"
 import bcrypt from "bcryptjs"
 import { localStore, sessionStore } from "@/app/lib/storage"
+import { STORAGE_KEYS } from "@/app/config/constants"
 
-const STORAGE_KEY = "auth_users"
-const SESSION_KEY = "auth_session"
+const STORAGE_KEY = STORAGE_KEYS.AUTH_USERS
+const SESSION_KEY = STORAGE_KEYS.AUTH_SESSION
 
 export const AuthService = {
   getStoredUsers(): IUser[] {

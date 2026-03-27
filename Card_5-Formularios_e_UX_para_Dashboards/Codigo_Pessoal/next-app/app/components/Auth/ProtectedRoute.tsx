@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/app/hooks/useAuth"
+import { useAuth } from "@/app/hooks"
 import { AuthModal } from "./AuthModal"
 import { Button } from "@/app/components/ui"
 import { Lock } from "lucide-react"

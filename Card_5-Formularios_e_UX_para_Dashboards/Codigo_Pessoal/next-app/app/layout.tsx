@@ -1,9 +1,10 @@
 import { Geist_Mono, Figtree } from "next/font/google"
 
 import "./globals.css"
-import { ThemeProvider, Sidebar } from "@/app/components"
+import { ThemeProvider, Sidebar, ErrorBoundary } from "@/app/components"
 import { Toaster } from "@/app/components/ui/sonner"
 import { cn } from "@/app/lib/utils"
+import { AuthProvider } from "@/app/contexts"
 
 import { Metadata } from "next"
 
@@ -36,17 +37,21 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ThemeProvider>
-          <div className="flex h-screen w-full bg-secondary">
-            <Sidebar />
+        <AuthProvider>
+          <ThemeProvider>
+            <div className="flex h-screen w-full bg-secondary">
+              <ErrorBoundary>
+                <Sidebar />
+              </ErrorBoundary>
 
-            <main className="flex h-full flex-1 flex-col overflow-auto p-6 transition-all md:p-10">
-              {/* Mobile Header Spacing - Common to all screens */}
-              <div className="h-16 shrink-0 md:hidden" />
-              {children}
-            </main>
-          </div>
-        </ThemeProvider>
+              <main className="flex h-full flex-1 flex-col overflow-auto p-6 transition-all md:p-10">
+                {/* Mobile Header Spacing - Common to all screens */}
+                <div className="h-16 shrink-0 md:hidden" />
+                <ErrorBoundary>{children}</ErrorBoundary>
+              </main>
+            </div>
+          </ThemeProvider>
+        </AuthProvider>
         <Toaster position="top-center" richColors />
       </body>
     </html>

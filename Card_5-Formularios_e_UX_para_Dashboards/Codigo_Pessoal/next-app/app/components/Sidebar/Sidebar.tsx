@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Menu, Home, LayoutDashboard, FileText } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "../ui"
 import { SidebarContent } from "./SidebarContent"
@@ -26,6 +26,18 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
 
 export function Sidebar() {
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <aside className="hidden h-screen w-16 flex-col border-r border-sidebar-border bg-sidebar md:flex" />
+    )
+  }
+
   return (
     <>
       <Sheet open={open} onOpenChange={setOpen}>

@@ -6,13 +6,11 @@ import {
   CardFooter,
 } from "@/app/components/ui/card"
 
-interface SurveyFormSkeletonProps {
+interface SurveySkeletonProps {
   hideHeader?: boolean
 }
 
-export function SurveyFormSkeleton({
-  hideHeader = false,
-}: SurveyFormSkeletonProps) {
+export function SurveySkeleton({ hideHeader = false }: SurveySkeletonProps) {
   return (
     <Card className="border-none shadow-xl">
       {!hideHeader && (

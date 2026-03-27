@@ -1,21 +1,33 @@
 "use client"
 
-import { useDashboardData } from "@/app/hooks/useDashboardData"
 import { DashboardView } from "./DashboardView"
 import { DashboardSkeleton } from "./DashboardSkeleton"
 import { Skeleton } from "@/app/components/ui"
 import { ProtectedRoute } from "../Auth"
+import type {
+  SurveyResponse,
+  FrequencyData,
+  ThemeData,
+  TimeData,
+} from "@/app/types"
 
-export function Dashboard() {
-  const {
-    data,
-    isLoading,
-    frequencyData,
-    themeData,
-    timeData,
-    dailyReadingPercentage,
-  } = useDashboardData()
+interface DashboardPresenterProps {
+  data: SurveyResponse[]
+  isLoading: boolean
+  frequencyData: FrequencyData[]
+  themeData: ThemeData[]
+  timeData: TimeData[]
+  dailyReadingPercentage: number
+}
 
+export function DashboardPresenter({
+  data,
+  isLoading,
+  frequencyData,
+  themeData,
+  timeData,
+  dailyReadingPercentage,
+}: DashboardPresenterProps) {
   return (
     <ProtectedRoute>
       <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">

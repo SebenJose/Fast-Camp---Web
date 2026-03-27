@@ -1,17 +1,11 @@
 "use client"
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  type ReactNode,
-} from "react"
+import { createContext, useState, useCallback, type ReactNode } from "react"
 import { AuthService } from "@/app/services"
 import bcrypt from "bcryptjs"
 import type { ISession, AuthContextValue } from "@/app/types"
 
-const AuthContext = createContext<AuthContextValue | null>(null)
+export const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<ISession | null>(() => {
@@ -75,10 +69,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>")
-  return ctx
 }

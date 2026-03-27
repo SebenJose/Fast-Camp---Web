@@ -31,7 +31,7 @@ import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group"
 import { Label } from "@/app/components/ui/label"
 import { SurveyInput } from "@/app/types/survey"
 
-interface SurveyFormViewProps {
+interface SurveyViewProps {
   form: UseFormReturn<SurveyInput>
   onSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>
   isSubmitting: boolean
@@ -39,13 +39,13 @@ interface SurveyFormViewProps {
   hideHeader?: boolean
 }
 
-export function SurveyFormView({
+export function SurveyView({
   form,
   onSubmit,
   isSubmitting,
   isSuccess,
   hideHeader = false,
-}: SurveyFormViewProps) {
+}: SurveyViewProps) {
   const {
     control,
     formState: { errors },
@@ -109,7 +109,6 @@ export function SurveyFormView({
             )}
           </div>
 
-          {/* Tema Favorito */}
           <div className="space-y-2">
             <Label className="text-sm font-semibold">Tema Favorito</Label>
             <Controller
@@ -136,7 +135,6 @@ export function SurveyFormView({
             )}
           </div>
 
-          {/* Frequência de Leitura */}
           <div className="space-y-4">
             <Label className="text-sm font-semibold">
               Com que frequência você lê sobre este tema?

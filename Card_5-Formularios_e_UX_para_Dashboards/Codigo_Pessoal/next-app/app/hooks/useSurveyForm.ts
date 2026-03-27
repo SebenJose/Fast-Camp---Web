@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { surveyInputSchema, type SurveyInput } from "@/app/types/survey"
 import { surveyService } from "@/app/services/surveyService"
+import { TIMEOUTS } from "@/app/config/constants"
 
 const DEFAULT_VALUES: SurveyInput = {
   readingDate: new Date(),
@@ -25,7 +26,7 @@ export function useSurveyForm() {
     if (status === "success") {
       const timeoutId = setTimeout(() => {
         setStatus("idle")
-      }, 3000)
+      }, TIMEOUTS.FORM_SUCCESS_RESET)
       return () => {
         clearTimeout(timeoutId)
       }

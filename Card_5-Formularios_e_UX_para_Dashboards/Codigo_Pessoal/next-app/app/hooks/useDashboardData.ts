@@ -1,6 +1,11 @@
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { surveyService } from "@/app/services/surveyService"
 import { SurveyResponse } from "@/app/types/survey"
+import {
+  SURVEY_THEMES,
+  SURVEY_FREQUENCIES,
+  TIMEOUTS,
+} from "@/app/config/constants"
 
 export function useDashboardData() {
   const [data, setData] = useState<SurveyResponse[]>([])
@@ -40,12 +45,9 @@ export function useDashboardData() {
   }, [])
 
   useEffect(() => {
-    const interval = setInterval(
-      () => {
-        refetch()
-      },
-      5 * 60 * 1000 //formula para calcular 5 minutos em milissegundos
-    )
+    const interval = setInterval(() => {
+      refetch()
+    }, TIMEOUTS.DASHBOARD_POLLING)
 
     return () => clearInterval(interval)
   }, [refetch])
@@ -58,11 +60,9 @@ export function useDashboardData() {
   }, [refetch])
 
   const frequencyData = useMemo(() => {
-    const counts: Record<string, number> = {
-      Diariamente: 0,
-      Semanalmente: 0,
-      Raramente: 0,
-    }
+    const counts = Object.fromEntries(
+      SURVEY_FREQUENCIES.map((f) => [f, 0])
+    ) as Record<string, number>
     data.forEach((s) => {
       if (counts[s.frequency] !== undefined) counts[s.frequency]++
     })
@@ -76,12 +76,9 @@ export function useDashboardData() {
   }, [data])
 
   const themeData = useMemo(() => {
-    const counts: Record<string, number> = {
-      Tecnologia: 0,
-      Economia: 0,
-      Educação: 0,
-      Saúde: 0,
-    }
+    const counts = Object.fromEntries(
+      SURVEY_THEMES.map((t) => [t, 0])
+    ) as Record<string, number>
     data.forEach((s) => {
       if (counts[s.theme] !== undefined) counts[s.theme]++
     })
@@ -121,7 +118,8 @@ export function useDashboardData() {
   const dailyReadingPercentage = useMemo(() => {
     if (data.length === 0) return 0
     const dailyCount =
-      frequencyData.find((f) => f.frequency === "Diariamente")?.count || 0
+      frequencyData.find((f) => f.frequency === SURVEY_FREQUENCIES[0])?.count ||
+      0
     return Math.round((dailyCount / data.length) * 100)
   }, [frequencyData, data.length])
 

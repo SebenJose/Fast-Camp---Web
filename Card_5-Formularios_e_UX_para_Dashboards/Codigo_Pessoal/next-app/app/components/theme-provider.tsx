@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
-import { AuthProvider } from "@/app/hooks/useAuth"
 
 function ThemeProvider({
   children,
@@ -17,7 +16,7 @@ function ThemeProvider({
       {...props}
     >
       <ThemeHotkey />
-      <AuthProvider>{children}</AuthProvider>
+      <div className="flex h-full w-full flex-col">{children}</div>
     </NextThemesProvider>
   )
 }
