@@ -1,0 +1,63 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Menu, Home, LayoutDashboard, FileText } from "lucide-react"
+import { Sheet, SheetContent, SheetTrigger } from "../ui"
+import { SidebarContent } from "./SidebarContent"
+import type { SidebarItem } from "./types"
+
+const SIDEBAR_ITEMS: SidebarItem[] = [
+  {
+    label: "Home",
+    href: "/",
+    icon: Home,
+  },
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Formulários",
+    href: "/forms",
+    icon: FileText,
+  },
+]
+
+export function Sidebar() {
+  const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setTimeout(() => setMounted(true), 0)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <aside className="hidden h-screen w-16 flex-col border-r border-sidebar-border bg-sidebar md:flex" />
+    )
+  }
+
+  return (
+    <>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger
+          className="fixed top-6 left-6 z-40 flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar shadow-lg hover:bg-sidebar/90 md:hidden"
+          aria-label="Abrir menu"
+        >
+          <Menu className="h-5 w-5 text-sidebar-foreground" />
+        </SheetTrigger>
+        <SheetContent side="left" className="w-56 bg-sidebar p-0">
+          <SidebarContent
+            items={SIDEBAR_ITEMS}
+            onItemClick={() => setOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
+      <aside className="group/sidebar hidden h-screen w-16 flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 hover:w-56 md:flex">
+        <SidebarContent items={SIDEBAR_ITEMS} />
+      </aside>
+    </>
+  )
+}
