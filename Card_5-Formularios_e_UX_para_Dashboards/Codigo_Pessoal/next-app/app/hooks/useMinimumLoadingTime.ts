@@ -13,7 +13,7 @@ export function useMinimumLoadingTime(isLoading: boolean, minimumTime: number) {
         setShowLoading(false)
       }, minimumTime)
     } else {
-      setShowLoading(true)
+      setTimeout(() => setShowLoading(true), 0)
     }
 
     return () => {
