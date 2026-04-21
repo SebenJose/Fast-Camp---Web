@@ -5,6 +5,8 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+database.db
+
 # C extensions
 *.so
 
