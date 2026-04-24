@@ -35,23 +35,24 @@ extend-exclude = ['migrations']
 [tool.ruff.lint]
 preview = true
 select = ['I', 'F', 'E', 'W', 'PL', 'PT']
+ignore = ['E501'] # Ignoramos o erro de linha longa no lint pois o formatador já cuida disso
 
 [tool.ruff.format]
 preview = true
 quote-style = 'single'
+docstring-code-format = true # Tenta formatar código dentro de docstrings
 
 [tool.pytest.ini_options]
 pythonpath = "."
 addopts = '-p no:warnings'
 
 [tool.typos.files]
-extend-exclude = ["*.md"]
+extend-exclude = ["*.md", "migrations"]
 
 [tool.taskipy.tasks]
 pre_lint = 'typos'
-lint = 'ruff check'
-pre_format = 'ruff check --fix'
-format = 'ruff format'
+lint = 'ruff check . && ruff format . --check'
+format = 'ruff check . --fix && ruff format .'
 run = 'fastapi dev fast_zero/app.py'
 pre_test = 'task lint'
 test = 'pytest -s -x --cov=fast_zero -vv'
