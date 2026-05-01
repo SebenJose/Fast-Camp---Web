@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app # Isso permite que alterações no código reflitam em tempo real
+    env_file:
+      - ./backend/.env # Carrega as variáveis de ambiente do backend (DATABASE_URL, etc.)
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Evita que a pasta da sua máquina sobrescreva a do contêiner
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000 # Browser precisa usar localhost, não o nome interno do docker
+    depends_on:
+      - backend # Garante que o backend sobe antes do frontend
