@@ -1,3 +1,3 @@
-import { LocalStorageSurveyRepository } from "@/app/repositories"
+import { ApiSurveyRepository } from "@/app/repositories"
 
-export const surveyService = new LocalStorageSurveyRepository()
+export const surveyService = new ApiSurveyRepository()

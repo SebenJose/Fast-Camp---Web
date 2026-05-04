@@ -1,5 +1,4 @@
 from http import HTTPStatus
-import token
 
 from fast_zero.schemas import UserPublic
 
@@ -54,7 +53,7 @@ def test_update_user(client, user, token):
             'username': 'bob',
             'email': 'bob@example.com',
             'password': 'secret',
-            'id': user.id
+            'id': user.id,
         },
     )
 

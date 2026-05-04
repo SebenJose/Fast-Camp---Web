@@ -26,4 +26,3 @@ Estas cores são exclusivas para a plotagem dos componentes do `recharts` locali
 | `chart-3`         | `0.546 0.245 262.881` |
 | `chart-4`         | `0.488 0.243 264.376` |
 | `chart-5`         | `0.424 0.199 265.638` |
-

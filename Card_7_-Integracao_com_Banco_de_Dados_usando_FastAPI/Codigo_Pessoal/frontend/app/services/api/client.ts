@@ -1,4 +1,5 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>
@@ -32,7 +33,7 @@ export async function apiClient<T>(
       const errorData = await response.json()
       errorMessage = errorData.detail || errorMessage
     } catch {
-      errorMessage = await response.text() || errorMessage
+      errorMessage = (await response.text()) || errorMessage
     }
     throw new Error(errorMessage)
   }

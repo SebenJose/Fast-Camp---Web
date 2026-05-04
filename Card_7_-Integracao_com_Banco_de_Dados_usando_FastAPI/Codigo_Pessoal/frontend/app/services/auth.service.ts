@@ -6,7 +6,10 @@ import { apiClient } from "@/app/services/api/client"
 const SESSION_KEY = STORAGE_KEYS.AUTH_SESSION
 
 export const AuthService = {
-  async login(email: string, password: string): Promise<{ access_token: string }> {
+  async login(
+    email: string,
+    password: string
+  ): Promise<{ access_token: string }> {
     const body = new URLSearchParams()
     // O backend espera um form data com username e password
     // O username no caso do OAuth2PasswordRequestForm é o email

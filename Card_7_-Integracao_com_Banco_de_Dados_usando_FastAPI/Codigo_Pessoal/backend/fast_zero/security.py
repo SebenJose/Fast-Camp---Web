@@ -7,8 +7,8 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt import decode, encode
 from jwt.exceptions import PyJWTError
 from pwdlib import PasswordHash
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from fast_zero.database import get_session
 from fast_zero.models import User

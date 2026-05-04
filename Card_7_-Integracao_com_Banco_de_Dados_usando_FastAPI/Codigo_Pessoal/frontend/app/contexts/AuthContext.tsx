@@ -16,13 +16,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { access_token } = await AuthService.login(email, password)
         const userMe = await AuthService.getUserMe(access_token)
-        
-        const newSession: ISession = { 
-          name: userMe.username, 
+
+        const newSession: ISession = {
+          name: userMe.username,
           email: userMe.email,
-          token: access_token
+          token: access_token,
         }
-        
+
         AuthService.setSession(newSession)
         setSession(newSession)
         return null
@@ -45,16 +45,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ): Promise<string | null> => {
       try {
         await AuthService.register({ name, email, password })
-        
+
         // Após o registro ser bem sucedido, efetuamos o login automaticamente
         const { access_token } = await AuthService.login(email, password)
-        
-        const newSession: ISession = { 
-          name, 
+
+        const newSession: ISession = {
+          name,
           email,
-          token: access_token
+          token: access_token,
         }
-        
+
         AuthService.setSession(newSession)
         setSession(newSession)
         return null

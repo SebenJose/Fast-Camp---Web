@@ -1,14 +1,23 @@
 from http import HTTPStatus
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
-from fastapi.middleware.cors import CORSMiddleware
 
 from fast_zero.database import get_session
-from fast_zero.models import User
-from fast_zero.schemas import Message, Token, UserList, UserPublic, UserSchema
+from fast_zero.models import Survey, User
+from fast_zero.schemas import (
+    Message,
+    SurveyList,
+    SurveyPublic,
+    SurveySchema,
+    Token,
+    UserList,
+    UserPublic,
+    UserSchema,
+)
 from fast_zero.security import (
     create_access_token,
     get_current_user,
@@ -20,11 +29,12 @@ app = FastAPI(title='Minha API')
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=['*'],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=['*'],
+    allow_headers=['*'],
 )
+
 
 @app.get('/', status_code=HTTPStatus.OK, response_model=Message)
 def read_root():
@@ -86,8 +96,9 @@ def update_user(
     current_user=Depends(get_current_user),
 ):
     if current_user.id != user_id:
-        raise HTTPException(status_code=400, detail='Not enough permission')
-
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN, detail='Not enough permission'
+        )
     current_user.email = user.email
     current_user.username = user.username
     current_user.password = get_password_hash(user.password)
@@ -110,7 +121,7 @@ def delete_user(
 
     if current_user.id != user_id:
         raise HTTPException(
-            satus_code=HTTPStatus.BAD_REQUEST,
+            status_code=HTTPStatus.FORBIDDEN,
             detail='Not enough permission',
         )
 
@@ -140,3 +151,31 @@ def login_for_access_token(
 @app.get('/users/me', status_code=HTTPStatus.OK, response_model=UserPublic)
 def read_users_me(current_user=Depends(get_current_user)):
     return current_user
+
+
+@app.post(
+    '/surveys/', status_code=HTTPStatus.CREATED, response_model=SurveyPublic
+)
+def create_survey(
+    survey: SurveySchema,
+    session: Session = Depends(get_session),
+    current_user=Depends(get_current_user),
+):
+    db_survey = Survey(
+        readingDate=survey.readingDate,
+        theme=survey.theme,
+        frequency=survey.frequency,
+    )
+    session.add(db_survey)
+    session.commit()
+    session.refresh(db_survey)
+    return db_survey
+
+
+@app.get('/surveys/', status_code=HTTPStatus.OK, response_model=SurveyList)
+def read_surveys(
+    session: Session = Depends(get_session),
+    current_user=Depends(get_current_user),
+):
+    surveys = session.scalars(select(Survey)).all()
+    return {'surveys': surveys}

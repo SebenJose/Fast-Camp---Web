@@ -57,6 +57,7 @@ def user(session):
 
     return user
 
+
 @pytest.fixture
 def token(client, user):
     response = client.post(
