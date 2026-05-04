@@ -111,7 +111,7 @@ def update_user(
 
 
 @app.delete(
-    '/users/{user_id}', status_code=HTTPStatus.OK, response_model=UserPublic
+    '/users/{user_id}', status_code=HTTPStatus.OK, response_model=Message
 )
 def delete_user(
     user_id: int,

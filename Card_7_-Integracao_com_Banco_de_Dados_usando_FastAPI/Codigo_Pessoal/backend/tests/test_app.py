@@ -72,11 +72,7 @@ def test_delete_user(client, user, token):
     )
 
     assert response.status_code == HTTPStatus.OK
-    assert response.json() == {
-        'username': 'Teste',
-        'email': 'teste@example.com',
-        'id': 1,
-    }
+    assert response.json() == {'message': 'User deleted'}
 
 
 def test_get_token(client, user):
