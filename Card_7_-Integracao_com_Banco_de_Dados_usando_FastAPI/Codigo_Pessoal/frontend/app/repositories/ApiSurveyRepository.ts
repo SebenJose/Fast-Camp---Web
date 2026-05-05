@@ -1,8 +1,7 @@
-import type { SurveyInput, SurveyResponse } from "@/app/types/survey"
+import type { SurveyInput, SurveyResponse, ApiSurveyDTO } from "@/app/types/survey"
 import type { ISurveyRepository } from "./ISurveyRepository"
 import { apiClient } from "@/app/services/api/client"
 import { AuthService } from "@/app/services"
-
 export class ApiSurveyRepository implements ISurveyRepository {
   private getHeaders(): Record<string, string> {
     const session = AuthService.getSession()
@@ -13,7 +12,7 @@ export class ApiSurveyRepository implements ISurveyRepository {
   }
 
   async getSurveys(): Promise<SurveyResponse[]> {
-    const data = await apiClient<{ surveys: any[] }>("/surveys/", {
+    const data = await apiClient<{ surveys: ApiSurveyDTO[] }>("/surveys/", {
       method: "GET",
       headers: this.getHeaders(),
     })
@@ -27,7 +26,7 @@ export class ApiSurveyRepository implements ISurveyRepository {
   }
 
   async createSurvey(input: SurveyInput): Promise<SurveyResponse> {
-    const item = await apiClient<any>("/surveys/", {
+    const item = await apiClient<ApiSurveyDTO>("/surveys/", {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({

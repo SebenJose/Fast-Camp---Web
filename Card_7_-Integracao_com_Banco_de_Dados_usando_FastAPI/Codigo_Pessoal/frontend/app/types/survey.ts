@@ -16,3 +16,10 @@ export const surveySchema = z.object({
 export type SurveyResponse = z.infer<typeof surveySchema>
 export const surveyInputSchema = surveySchema.omit({ id: true })
 export type SurveyInput = z.infer<typeof surveyInputSchema>
+
+export interface ApiSurveyDTO {
+  id: number
+  readingDate: string
+  theme: SurveyResponse["theme"]
+  frequency: SurveyResponse["frequency"]
+}
