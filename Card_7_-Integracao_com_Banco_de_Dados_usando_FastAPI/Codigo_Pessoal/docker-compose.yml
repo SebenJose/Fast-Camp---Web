@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: fast_zero
+      POSTGRES_USER: fast_zero
+      POSTGRES_PASSWORD: fast_zero
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fast_zero -d fast_zero"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      DATABASE_URL: postgresql+psycopg://fast_zero:fast_zero@db:5432/fast_zero
+      SECRET_KEY: ${SECRET_KEY:?Configure SECRET_KEY no arquivo .env}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      API_INTERNAL_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: http://localhost:8001
+    depends_on:
+      - backend
+    command: sh -c "test -d node_modules/.bin || npm ci; npm run dev"
+
+volumes:
+  frontend_node_modules:
+  postgres_data:
