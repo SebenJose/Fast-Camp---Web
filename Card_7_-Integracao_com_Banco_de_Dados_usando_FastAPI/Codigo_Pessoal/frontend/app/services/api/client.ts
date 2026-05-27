@@ -1,5 +1,22 @@
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+const API_URL_BY_RUNTIME = {
+  browser: process.env.NEXT_PUBLIC_API_URL,
+  server: process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL,
+}
+
+function getApiUrl(): string {
+  const runtime = typeof window === "undefined" ? "server" : "browser"
+  const apiUrl = API_URL_BY_RUNTIME[runtime]
+
+  if (!apiUrl) {
+    throw new Error(
+      runtime === "server"
+        ? "API_INTERNAL_URL ou NEXT_PUBLIC_API_URL precisa ser configurada"
+        : "NEXT_PUBLIC_API_URL precisa ser configurada"
+    )
+  }
+
+  return apiUrl
+}
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>
@@ -11,7 +28,7 @@ export async function apiClient<T>(
 ): Promise<T> {
   const { params, headers, ...customConfig } = options
 
-  let url = `${API_URL}${endpoint}`
+  let url = `${getApiUrl()}${endpoint}`
   if (params) {
     const searchParams = new URLSearchParams(params)
     url += `?${searchParams.toString()}`

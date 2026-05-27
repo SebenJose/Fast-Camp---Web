@@ -1,14 +1,13 @@
+import type * as z from "zod"
+import { sessionSchema } from "@/app/lib/validations/auth.schema"
+
 export interface IUser {
   name: string
   email: string
   password: string
 }
 
-export interface ISession {
-  name: string
-  email: string
-  token: string
-}
+export type ISession = z.infer<typeof sessionSchema>
 
 export interface AuthContextValue {
   session: ISession | null

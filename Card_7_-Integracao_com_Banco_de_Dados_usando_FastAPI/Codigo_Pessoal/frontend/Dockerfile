@@ -4,10 +4,6 @@ FROM node:20-alpine
 # Define a pasta de trabalho dentro do contêiner
 WORKDIR /app
 
-# Copia os arquivos de dependência e instala
-COPY package*.json ./
-RUN npm ci
-
 # Copia o resto do código
 COPY . .
 

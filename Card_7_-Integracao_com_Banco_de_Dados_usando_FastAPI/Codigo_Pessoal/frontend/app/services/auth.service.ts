@@ -2,8 +2,16 @@ import type { ISession, IUser } from "@/app/types"
 import { sessionStore } from "@/app/lib/storage"
 import { STORAGE_KEYS } from "@/app/config/constants"
 import { apiClient } from "@/app/services/api/client"
+import { sessionSchema } from "@/app/lib/validations/auth.schema"
 
 const SESSION_KEY = STORAGE_KEYS.AUTH_SESSION
+
+function parseStoredSession(rawSession: string): ISession | null {
+  const parsedSession: unknown = JSON.parse(rawSession)
+  const validation = sessionSchema.safeParse(parsedSession)
+
+  return validation.success ? validation.data : null
+}
 
 export const AuthService = {
   async login(
@@ -48,7 +56,7 @@ export const AuthService = {
   getSession(): ISession | null {
     try {
       const raw = sessionStore.getItem(SESSION_KEY)
-      return raw ? (JSON.parse(raw) as ISession) : null
+      return raw ? parseStoredSession(raw) : null
     } catch {
       return null
     }

@@ -5,6 +5,12 @@ export const signInSchema = z.object({
   password: z.string().min(6, "Mínimo de 6 caracteres"),
 })
 
+export const sessionSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  token: z.string().min(1),
+})
+
 export const signUpSchema = z
   .object({
     name: z.string().min(1, "Nome obrigatório"),
@@ -18,4 +24,5 @@ export const signUpSchema = z
   })
 
 export type SignInFields = z.infer<typeof signInSchema>
+export type SessionFields = z.infer<typeof sessionSchema>
 export type SignUpFields = z.infer<typeof signUpSchema>
