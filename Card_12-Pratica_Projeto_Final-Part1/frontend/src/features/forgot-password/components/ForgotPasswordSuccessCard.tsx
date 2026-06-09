@@ -14,7 +14,8 @@ export function ForgotPasswordSuccessCard() {
           Senha atualizada!
         </h2>
         <p className="max-w-md text-base leading-7 text-secundary-title mt-4 text-center mx-auto">
-          Sua senha foi redefinida com sucesso. Agora você pode entrar com suas novas credenciais.
+          Sua senha foi redefinida com sucesso. Agora você pode entrar com suas
+          novas credenciais.
         </p>
 
         <div className="mt-8 w-full">

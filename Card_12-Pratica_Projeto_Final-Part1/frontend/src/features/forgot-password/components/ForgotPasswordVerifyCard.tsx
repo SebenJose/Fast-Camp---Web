@@ -36,14 +36,20 @@ export function ForgotPasswordVerifyCard({
         </CardTitle>
         <CardDescription className="max-w-md text-base leading-7 text-secundary-title mt-2">
           Um código de verificação foi enviado para o e-mail{" "}
-          <span className="font-semibold text-primary-title">{email || "xxxxx"}</span>.
+          <span className="font-semibold text-primary-title">
+            {email || "xxxxx"}
+          </span>
+          .
         </CardDescription>
       </CardHeader>
 
       <CardContent className="mt-8">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-3">
-            <label className="text-sm font-semibold text-secundary-title" htmlFor="code">
+            <label
+              className="text-sm font-semibold text-secundary-title"
+              htmlFor="code"
+            >
               Código de Verificação
             </label>
             <div className="relative flex items-center">

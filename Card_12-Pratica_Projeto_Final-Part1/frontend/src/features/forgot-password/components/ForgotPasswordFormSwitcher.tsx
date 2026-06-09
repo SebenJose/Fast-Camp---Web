@@ -42,11 +42,7 @@ export function ForgotPasswordFormSwitcher() {
         />
       );
     case "reset":
-      return (
-        <ForgotPasswordResetCard
-          onSubmit={handleResetPassword}
-        />
-      );
+      return <ForgotPasswordResetCard onSubmit={handleResetPassword} />;
     case "success":
       return <ForgotPasswordSuccessCard />;
     default:

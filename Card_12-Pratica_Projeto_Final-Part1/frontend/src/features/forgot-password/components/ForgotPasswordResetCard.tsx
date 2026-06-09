@@ -37,14 +37,18 @@ export function ForgotPasswordResetCard({
           Nova Senha
         </CardTitle>
         <CardDescription className="max-w-md text-base leading-7 text-secundary-title mt-2">
-          Defina sua nova senha de acesso. Certifique-se de usar uma senha forte.
+          Defina sua nova senha de acesso. Certifique-se de usar uma senha
+          forte.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="mt-8">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-3">
-            <label className="text-sm font-semibold text-secundary-title" htmlFor="new-password">
+            <label
+              className="text-sm font-semibold text-secundary-title"
+              htmlFor="new-password"
+            >
               Nova Senha
             </label>
             <div className="relative flex items-center">
@@ -64,7 +68,10 @@ export function ForgotPasswordResetCard({
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-semibold text-secundary-title" htmlFor="confirm-password">
+            <label
+              className="text-sm font-semibold text-secundary-title"
+              htmlFor="confirm-password"
+            >
               Confirmar Nova Senha
             </label>
             <div className="relative flex items-center">

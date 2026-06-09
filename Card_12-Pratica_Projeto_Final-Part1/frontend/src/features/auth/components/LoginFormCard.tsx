@@ -7,7 +7,6 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 
-
 type LoginFormCardProps = {
   onShowRegister: () => void;
 };
@@ -46,7 +45,10 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
 
         <form className="mt-8 space-y-5">
           <div className="space-y-3">
-            <label className="text-sm font-semibold text-secundary-title" htmlFor="email">
+            <label
+              className="text-sm font-semibold text-secundary-title"
+              htmlFor="email"
+            >
               E-mail
             </label>
             <input

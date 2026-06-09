@@ -34,14 +34,18 @@ export function ForgotPasswordRequestCard({
           Recuperar senha
         </CardTitle>
         <CardDescription className="max-w-md text-base leading-7 text-secundary-title mt-2">
-          Informe seu e-mail para receber um código de verificação para redefinir sua senha.
+          Informe seu e-mail para receber um código de verificação para
+          redefinir sua senha.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="mt-8">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-3">
-            <label className="text-sm font-semibold text-secundary-title" htmlFor="email">
+            <label
+              className="text-sm font-semibold text-secundary-title"
+              htmlFor="email"
+            >
               E-mail
             </label>
             <div className="relative flex items-center">
