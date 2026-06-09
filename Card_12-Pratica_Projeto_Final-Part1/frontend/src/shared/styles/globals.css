@@ -116,10 +116,6 @@ body {
   margin: 0;
 }
 
-a {
-  color: inherit;
-}
-
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
@@ -175,5 +171,8 @@ input:-webkit-autofill:focus {
   }
   html {
     @apply font-sans;
+  }
+  a {
+    color: inherit;
   }
 }

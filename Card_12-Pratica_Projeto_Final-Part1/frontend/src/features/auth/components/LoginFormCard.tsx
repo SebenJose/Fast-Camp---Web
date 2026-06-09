@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -5,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
+
 
 type LoginFormCardProps = {
   onShowRegister: () => void;
@@ -42,7 +44,7 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
           </div>
         </div>
 
-        <form className="mt-8 space-y-6">
+        <form className="mt-8 space-y-5">
           <div className="space-y-3">
             <label className="text-sm font-semibold text-secundary-title" htmlFor="email">
               E-mail
@@ -56,19 +58,19 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-baseline justify-between gap-4">
               <label
                 className="text-sm font-semibold text-secundary-title"
                 htmlFor="password"
               >
                 Senha
               </label>
-              <a
+              <Link
                 className="text-xs font-semibold text-secundary-title underline underline-offset-4 transition hover:text-primary-title"
                 href="/auth/forgot-password"
               >
                 Esqueci minha senha
-              </a>
+              </Link>
             </div>
             <input
               className="h-14 w-full rounded-2xl border border-card-opaque bg-input-opaque px-4 text-app-foreground outline-none transition placeholder:text-app-foreground/50 focus:border-app-foreground focus:ring-2 focus:ring-white/20"
