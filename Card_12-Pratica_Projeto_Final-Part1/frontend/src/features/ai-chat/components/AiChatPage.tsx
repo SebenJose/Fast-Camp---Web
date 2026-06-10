@@ -1,7 +1,7 @@
 "use client";
 
 import { BotMessageSquare, Send, Sparkles, StopCircle } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
@@ -9,9 +9,7 @@ import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
 
-// ---------------------------------------------------------------------------
 // Tipos locais
-// ---------------------------------------------------------------------------
 
 type MessageRole = "user" | "assistant";
 
@@ -43,9 +41,7 @@ const SUGGESTED_PROMPTS = [
   "Resuma meu dia",
 ];
 
-// ---------------------------------------------------------------------------
 // Sub-componentes
-// ---------------------------------------------------------------------------
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === "user";
@@ -112,25 +108,51 @@ function TypingIndicator() {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Componente principal
-// ---------------------------------------------------------------------------
 
 export function AiChatPage() {
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const nextMessageIdRef = useRef(2);
+  const responseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const hasMessages = messages.length > 1;
+
+  useEffect(() => {
+    return () => {
+      if (responseTimeoutRef.current) {
+        clearTimeout(responseTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function createMessageId() {
+    const nextId = nextMessageIdRef.current;
+    nextMessageIdRef.current += 1;
+    return nextId.toString();
+  }
+
+  function clearPendingResponse() {
+    if (responseTimeoutRef.current) {
+      clearTimeout(responseTimeoutRef.current);
+      responseTimeoutRef.current = null;
+    }
+  }
+
+  function handleStopResponse() {
+    clearPendingResponse();
+    setIsTyping(false);
+  }
 
   function handleSend(text: string = input) {
     const trimmed = text.trim();
     if (!trimmed || isTyping) return;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: createMessageId(),
       role: "user",
       content: trimmed,
       timestamp: new Date(),
@@ -141,9 +163,9 @@ export function AiChatPage() {
     setIsTyping(true);
 
     // Simula resposta da IA (apenas visual)
-    setTimeout(() => {
+    responseTimeoutRef.current = setTimeout(() => {
       const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: createMessageId(),
         role: "assistant",
         content:
           "Entendido! Estou processando sua solicitação. Em breve a integração com a IA estará disponível.",
@@ -151,6 +173,7 @@ export function AiChatPage() {
       };
       setMessages((prev) => [...prev, aiMessage]);
       setIsTyping(false);
+      responseTimeoutRef.current = null;
     }, 1500);
   }
 
@@ -225,7 +248,7 @@ export function AiChatPage() {
           />
           <Button
             size="icon"
-            onClick={() => (isTyping ? setIsTyping(false) : handleSend())}
+            onClick={() => (isTyping ? handleStopResponse() : handleSend())}
             disabled={!isTyping && !input.trim()}
             className={cn(
               "shrink-0 transition-all duration-150",

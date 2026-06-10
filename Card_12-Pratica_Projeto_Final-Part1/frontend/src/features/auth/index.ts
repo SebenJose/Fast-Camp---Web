@@ -1,1 +1,1 @@
-export { AuthPage } from "./components";
+export { AuthPage, AuthPageSkeleton } from "./components";
