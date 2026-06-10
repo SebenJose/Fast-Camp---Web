@@ -58,6 +58,11 @@ export function TodayScheduleCard({
     setOpenEventId(null);
   }
 
+  function handleToggleEventCompleted(eventId: string) {
+    onToggleEventCompleted(eventId);
+    setOpenEventId(null);
+  }
+
   function handleOpenControlsPanel(panel: ScheduleControlsPanel) {
     setOpenControlsPanel((currentPanel) =>
       currentPanel === panel ? null : panel,
@@ -118,7 +123,7 @@ export function TodayScheduleCard({
               openEventId={openEventId}
               onOpenEvent={handleOpenEvent}
               onDeleteEvent={handleDeleteEvent}
-              onToggleEventCompleted={onToggleEventCompleted}
+              onToggleEventCompleted={handleToggleEventCompleted}
             />
           ))}
 
