@@ -2,7 +2,6 @@ import {
   BriefcaseBusiness,
   Coffee,
   Moon,
-  Sparkles,
   Sun,
   Utensils,
 } from "lucide-react";
@@ -116,10 +115,5 @@ export const TODAY_SCHEDULE_METRICS: ScheduleMetric[] = [
     id: "completed-blocks",
     icon: BriefcaseBusiness,
     label: `${completedBlocks}/${totalBlocks} feitas`,
-  },
-  {
-    id: "next-block",
-    icon: Sparkles,
-    label: "Próximo: planejamento",
   },
 ];

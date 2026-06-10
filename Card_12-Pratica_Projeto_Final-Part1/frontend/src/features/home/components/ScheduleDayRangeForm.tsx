@@ -1,7 +1,7 @@
-import { SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME } from "../constants/schedule";
 import type { ScheduleDayRange } from "../types/schedule";
 
 import { ScheduleFormField } from "./ScheduleFormField";
+import { ScheduleTimeSelect } from "./ScheduleTimeSelect";
 
 type ScheduleDayRangeFormProps = {
   value: ScheduleDayRange;
@@ -24,24 +24,16 @@ export function ScheduleDayRangeForm({
       </div>
 
       <ScheduleFormField label="Começa">
-        <input
-          type="time"
+        <ScheduleTimeSelect
           value={value.startTime}
-          onChange={(event) =>
-            onChange({ ...value, startTime: event.target.value })
-          }
-          className={SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME}
+          onChange={(startTime) => onChange({ ...value, startTime })}
         />
       </ScheduleFormField>
 
       <ScheduleFormField label="Termina">
-        <input
-          type="time"
+        <ScheduleTimeSelect
           value={value.endTime}
-          onChange={(event) =>
-            onChange({ ...value, endTime: event.target.value })
-          }
-          className={SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME}
+          onChange={(endTime) => onChange({ ...value, endTime })}
         />
       </ScheduleFormField>
     </div>

@@ -14,6 +14,7 @@ import type {
 } from "../types/schedule";
 
 import { ScheduleDayRangeForm } from "./ScheduleDayRangeForm";
+import { ScheduleEventDialog } from "./ScheduleEventDialog";
 import { ScheduleEventForm } from "./ScheduleEventForm";
 import { SchedulePeriodCard } from "./SchedulePeriodCard";
 import { TodayScheduleCardHeader } from "./TodayScheduleCardHeader";
@@ -21,6 +22,7 @@ import { TodayScheduleCardHeader } from "./TodayScheduleCardHeader";
 type TodayScheduleCardProps = {
   metrics: ScheduleMetric[];
   periods: SchedulePeriod[];
+  currentDate: Date;
   dayRange: ScheduleDayRange;
   onDayRangeChange: (value: ScheduleDayRange) => void;
   eventFormValues: ScheduleEventFormValues;
@@ -35,6 +37,7 @@ type ScheduleControlsPanel = "day-range" | "event-form";
 export function TodayScheduleCard({
   metrics,
   periods,
+  currentDate,
   dayRange,
   onDayRangeChange,
   eventFormValues,
@@ -46,6 +49,10 @@ export function TodayScheduleCard({
   const [openEventId, setOpenEventId] = useState<string | null>(null);
   const [openControlsPanel, setOpenControlsPanel] =
     useState<ScheduleControlsPanel | null>(null);
+  const selectedEvent =
+    periods
+      .flatMap((period) => period.events)
+      .find((event) => event.id === openEventId) ?? null;
 
   function handleOpenEvent(eventId: string) {
     setOpenEventId((currentEventId) =>
@@ -120,10 +127,8 @@ export function TodayScheduleCard({
             <SchedulePeriodCard
               key={period.id}
               period={period}
-              openEventId={openEventId}
+              currentDate={currentDate}
               onOpenEvent={handleOpenEvent}
-              onDeleteEvent={handleDeleteEvent}
-              onToggleEventCompleted={handleToggleEventCompleted}
             />
           ))}
 
@@ -139,6 +144,18 @@ export function TodayScheduleCard({
           mostra apenas o necessário para decidir o próximo passo.
         </p>
       </Card>
+
+      <ScheduleEventDialog
+        event={selectedEvent}
+        open={selectedEvent !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setOpenEventId(null);
+          }
+        }}
+        onDelete={handleDeleteEvent}
+        onToggleCompleted={handleToggleEventCompleted}
+      />
     </section>
   );
 }

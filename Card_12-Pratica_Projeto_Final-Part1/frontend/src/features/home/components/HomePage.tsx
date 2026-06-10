@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import {
   TODAY_SCHEDULE_METRICS,
   TODAY_SCHEDULE_PERIODS,
 } from "../data/today-schedule";
-import type { ScheduleEvent } from "../types/schedule";
+import type { ScheduleDayRange, ScheduleEvent } from "../types/schedule";
 import {
   INITIAL_SCHEDULE_DAY_RANGE,
   INITIAL_SCHEDULE_EVENT_FORM_VALUES,
@@ -25,40 +26,42 @@ import { TodayScheduleCard } from "./TodayScheduleCard";
 export function HomePage() {
   const [periods, setPeriods] = useState(TODAY_SCHEDULE_PERIODS);
   const [dayRange, setDayRange] = useState(INITIAL_SCHEDULE_DAY_RANGE);
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const [eventFormValues, setEventFormValues] = useState(
     INITIAL_SCHEDULE_EVENT_FORM_VALUES,
   );
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentDate(new Date());
+    }, 30_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const visiblePeriods = useMemo(
     () => getVisibleSchedulePeriods(periods, dayRange),
     [periods, dayRange],
   );
+  const visibleEvents = useMemo(
+    () => visiblePeriods.flatMap((period) => period.events),
+    [visiblePeriods],
+  );
 
   const metrics = useMemo(() => {
-    const events = visiblePeriods.flatMap((period) => period.events);
-    const completedBlocks = events.filter((event) => event.completed).length;
-    const nextEvent = sortScheduleEvents(events).find(
-      (event) => !event.completed,
-    );
+    const completedBlocks = visibleEvents.filter((event) => event.completed).length;
 
     return TODAY_SCHEDULE_METRICS.map((metric) => {
       if (metric.id === "completed-blocks") {
         return {
           ...metric,
-          label: `${completedBlocks}/${events.length} feitas`,
-        };
-      }
-
-      if (metric.id === "next-block") {
-        return {
-          ...metric,
-          label: nextEvent ? `Próximo: ${nextEvent.title}` : "Tudo feito",
+          label: `${completedBlocks}/${visibleEvents.length} feitas`,
         };
       }
 
       return metric;
     });
-  }, [visiblePeriods]);
+  }, [visibleEvents]);
 
   function handleAddEvent() {
     const title = eventFormValues.title.trim();
@@ -66,6 +69,7 @@ export function HomePage() {
     const endMinutes = getMinutesFromTime(eventFormValues.endTime);
 
     if (!title || endMinutes <= startMinutes) {
+      toast.warning("Preencha um título e um horário válido para criar o card.");
       return;
     }
 
@@ -74,6 +78,7 @@ export function HomePage() {
     );
 
     if (!targetPeriod) {
+      toast.warning("Esse horário está fora do intervalo visível do dia.");
       return;
     }
 
@@ -112,18 +117,57 @@ export function HomePage() {
         : INITIAL_SCHEDULE_EVENT_FORM_VALUES.endTime,
       tone: currentValues.tone,
     }));
+
+    toast.success("Card criado com sucesso.");
   }
 
   function handleDeleteEvent(eventId: string) {
+    const deletedEvent = periods
+      .flatMap((period) => period.events)
+      .find((event) => event.id === eventId);
+
     setPeriods((currentPeriods) =>
       currentPeriods.map((period) => ({
         ...period,
         events: period.events.filter((event) => event.id !== eventId),
       })),
     );
+
+    toast.success(
+      deletedEvent
+        ? `Card "${deletedEvent.title}" excluído.`
+        : "Card excluído.",
+    );
+  }
+
+  function handleDayRangeChange(nextDayRange: ScheduleDayRange) {
+    if (
+      nextDayRange.startTime === dayRange.startTime &&
+      nextDayRange.endTime === dayRange.endTime
+    ) {
+      return;
+    }
+
+    setDayRange(nextDayRange);
+
+    const startMinutes = getMinutesFromTime(nextDayRange.startTime);
+    const endMinutes = getMinutesFromTime(nextDayRange.endTime);
+
+    if (endMinutes <= startMinutes) {
+      toast.warning("O fim do dia precisa ser depois do começo.");
+      return;
+    }
+
+    toast.success(
+      `Horário do dia atualizado: ${nextDayRange.startTime} - ${nextDayRange.endTime}.`,
+    );
   }
 
   function handleToggleEventCompleted(eventId: string) {
+    const targetEvent = periods
+      .flatMap((period) => period.events)
+      .find((event) => event.id === eventId);
+
     setPeriods((currentPeriods) =>
       currentPeriods.map((period) => ({
         ...period,
@@ -134,17 +178,29 @@ export function HomePage() {
         ),
       })),
     );
+
+    if (!targetEvent) {
+      return;
+    }
+
+    if (targetEvent.completed) {
+      toast.info(`Card "${targetEvent.title}" reaberto.`);
+      return;
+    }
+
+    toast.success(`Card "${targetEvent.title}" marcado como feito.`);
   }
 
   return (
     <main className="min-h-screen overflow-hidden bg-primary-black px-5 py-6 text-primary-title sm:px-8 lg:px-12 lg:py-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-        <HomeHeader />
+        <HomeHeader events={visibleEvents} currentDate={currentDate} />
         <TodayScheduleCard
           metrics={metrics}
           periods={visiblePeriods}
+          currentDate={currentDate}
           dayRange={dayRange}
-          onDayRangeChange={setDayRange}
+          onDayRangeChange={handleDayRangeChange}
           eventFormValues={eventFormValues}
           onEventFormChange={setEventFormValues}
           onAddEvent={handleAddEvent}

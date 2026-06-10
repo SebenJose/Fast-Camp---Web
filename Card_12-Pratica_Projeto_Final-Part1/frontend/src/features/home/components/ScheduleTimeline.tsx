@@ -9,18 +9,14 @@ import { ScheduleEventCard } from "./ScheduleEventCard";
 
 type ScheduleTimelineProps = {
   period: SchedulePeriod;
-  openEventId: string | null;
+  currentDate: Date;
   onOpenEvent: (eventId: string) => void;
-  onDeleteEvent: (eventId: string) => void;
-  onToggleEventCompleted: (eventId: string) => void;
 };
 
 export function ScheduleTimeline({
   period,
-  openEventId,
+  currentDate,
   onOpenEvent,
-  onDeleteEvent,
-  onToggleEventCompleted,
 }: ScheduleTimelineProps) {
   const positionedEvents = getPositionedScheduleEvents(period.events);
   const laneCount = positionedEvents.length
@@ -66,11 +62,9 @@ export function ScheduleTimeline({
             key={event.id}
             event={event}
             period={period}
+            currentDate={currentDate}
             lane={lane}
-            isOpen={openEventId === event.id}
             onOpenChange={onOpenEvent}
-            onDelete={onDeleteEvent}
-            onToggleCompleted={onToggleEventCompleted}
           />
         ))}
       </div>

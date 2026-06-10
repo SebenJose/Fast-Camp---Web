@@ -22,6 +22,10 @@ export function getMinutesFromTime(time: string) {
   return Number(hours) * 60 + Number(minutes);
 }
 
+export function getMinutesFromDate(date: Date) {
+  return date.getHours() * 60 + date.getMinutes();
+}
+
 export function getTimeFromMinutes(totalMinutes: number) {
   const hours = Math.floor(totalMinutes / 60)
     .toString()
@@ -164,4 +168,23 @@ export function isEventInsidePeriod(
   const eventStart = getMinutesFromTime(event.startTime);
 
   return eventStart >= period.startHour * 60 && eventStart < period.endHour * 60;
+}
+
+export function getNextScheduleEvent(
+  events: ScheduleEvent[],
+  currentDate: Date,
+) {
+  const currentMinutes = getMinutesFromDate(currentDate);
+
+  return sortScheduleEvents(events).find(
+    (event) =>
+      !event.completed && getMinutesFromTime(event.startTime) >= currentMinutes,
+  );
+}
+
+export function isScheduleEventMissed(event: ScheduleEvent, currentDate: Date) {
+  return (
+    !event.completed &&
+    getMinutesFromTime(event.endTime) < getMinutesFromDate(currentDate)
+  );
 }

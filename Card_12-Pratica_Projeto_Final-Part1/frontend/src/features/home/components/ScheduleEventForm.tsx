@@ -2,6 +2,13 @@ import type { FormEvent } from "react";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 
 import {
   SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME,
@@ -13,6 +20,7 @@ import type {
 } from "../types/schedule";
 
 import { ScheduleFormField } from "./ScheduleFormField";
+import { ScheduleTimeSelect } from "./ScheduleTimeSelect";
 
 type ScheduleEventFormProps = {
   values: ScheduleEventFormValues;
@@ -47,44 +55,44 @@ export function ScheduleEventForm({
       </ScheduleFormField>
 
       <ScheduleFormField label="Início">
-        <input
-          type="time"
+        <ScheduleTimeSelect
           value={values.startTime}
-          onChange={(event) =>
-            onChange({ ...values, startTime: event.target.value })
-          }
-          className={SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME}
+          onChange={(startTime) => onChange({ ...values, startTime })}
         />
       </ScheduleFormField>
 
       <ScheduleFormField label="Fim">
-        <input
-          type="time"
+        <ScheduleTimeSelect
           value={values.endTime}
-          onChange={(event) =>
-            onChange({ ...values, endTime: event.target.value })
-          }
-          className={SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME}
+          onChange={(endTime) => onChange({ ...values, endTime })}
         />
       </ScheduleFormField>
 
       <ScheduleFormField label="Cor">
-        <select
+        <Select
           value={values.tone}
-          onChange={(event) =>
+          onValueChange={(tone) =>
             onChange({
               ...values,
-              tone: event.target.value as ScheduleEventTone,
+              tone: tone as ScheduleEventTone,
             })
           }
-          className={SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME}
         >
-          {SCHEDULE_EVENT_TONE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="h-10 w-full rounded-xl border-app-border bg-input-opaque px-3 text-sm font-medium text-primary-title hover:bg-card-opaque focus-visible:border-secundary-title/60 focus-visible:ring-secundary-title/20">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="border-app-border bg-input-opaque text-primary-title shadow-xl shadow-black/30">
+            {SCHEDULE_EVENT_TONE_OPTIONS.map((option) => (
+              <SelectItem
+                key={option.value}
+                value={option.value}
+                className="focus:bg-card-opaque focus:text-primary-title"
+              >
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </ScheduleFormField>
 
       <Button type="submit" className="self-end">

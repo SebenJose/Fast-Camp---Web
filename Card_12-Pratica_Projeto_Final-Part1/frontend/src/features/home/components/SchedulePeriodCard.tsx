@@ -7,18 +7,14 @@ import { ScheduleTimeline } from "./ScheduleTimeline";
 
 type SchedulePeriodCardProps = {
   period: SchedulePeriod;
-  openEventId: string | null;
+  currentDate: Date;
   onOpenEvent: (eventId: string) => void;
-  onDeleteEvent: (eventId: string) => void;
-  onToggleEventCompleted: (eventId: string) => void;
 };
 
 export function SchedulePeriodCard({
   period,
-  openEventId,
+  currentDate,
   onOpenEvent,
-  onDeleteEvent,
-  onToggleEventCompleted,
 }: SchedulePeriodCardProps) {
   const Icon = period.icon;
 
@@ -39,10 +35,8 @@ export function SchedulePeriodCard({
 
           <ScheduleTimeline
             period={period}
-            openEventId={openEventId}
+            currentDate={currentDate}
             onOpenEvent={onOpenEvent}
-            onDeleteEvent={onDeleteEvent}
-            onToggleEventCompleted={onToggleEventCompleted}
           />
         </CardContent>
       </Card>

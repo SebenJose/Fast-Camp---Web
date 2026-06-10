@@ -36,6 +36,8 @@
   --schedule-rose-fg: oklch(0.18 0.04 20);
   --schedule-completed-border: oklch(0.77 0.16 152);
   --schedule-completed-icon: oklch(0.84 0.18 152);
+  --schedule-missed-border: oklch(0.67 0.22 24);
+  --schedule-missed-icon: oklch(0.72 0.22 24);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -100,6 +102,8 @@
   --color-schedule-rose-fg: var(--schedule-rose-fg);
   --color-schedule-completed-border: var(--schedule-completed-border);
   --color-schedule-completed-icon: var(--schedule-completed-icon);
+  --color-schedule-missed-border: var(--schedule-missed-border);
+  --color-schedule-missed-icon: var(--schedule-missed-icon);
   --font-sans: var(--font-sans);
   --font-mono: "Courier New", Courier, monospace;
   --font-heading: var(--font-sans);

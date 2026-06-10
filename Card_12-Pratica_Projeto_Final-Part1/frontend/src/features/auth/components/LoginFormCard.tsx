@@ -1,4 +1,7 @@
 import Link from "next/link";
+import type { FormEvent } from "react";
+import { toast } from "sonner";
+
 import {
   Card,
   CardContent,
@@ -12,6 +15,11 @@ type LoginFormCardProps = {
 };
 
 export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    toast.success("Login realizado com sucesso.");
+  }
+
   return (
     <Card className="w-full max-w-lg rounded-[28px] border-2 border-card-opaque bg-opaque-black p-8 text-primary-title shadow-2xl shadow-black/30 ring-0 sm:p-10">
       <CardHeader>
@@ -43,7 +51,7 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
           </div>
         </div>
 
-        <form className="mt-8 space-y-5">
+        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-3">
             <label
               className="text-sm font-semibold text-secundary-title"

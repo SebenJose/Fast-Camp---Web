@@ -18,12 +18,14 @@ export function ScheduleEventCardDetails({
   onToggleCompleted,
 }: ScheduleEventCardDetailsProps) {
   return (
-    <div className="mt-3 grid gap-2 border-t border-current/20 pt-3">
+    <div className="grid gap-4 border-t border-app-border pt-4">
       <div>
-        <p className="text-[0.68rem] font-bold uppercase opacity-70">
+        <p className="text-[0.68rem] font-bold uppercase text-app-muted">
           Agendado
         </p>
-        <p className="mt-0.5 font-semibold">{timeLabel}</p>
+        <p className="mt-1 text-sm font-semibold text-primary-title">
+          {timeLabel}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -31,7 +33,6 @@ export function ScheduleEventCardDetails({
           type="button"
           size="sm"
           variant="secondary"
-          className="bg-primary-black/15 text-current hover:bg-primary-black/25"
           onClick={onToggleCompleted}
         >
           <Check size={14} aria-hidden="true" />
@@ -42,7 +43,6 @@ export function ScheduleEventCardDetails({
           type="button"
           size="sm"
           variant="destructive"
-          className="bg-primary-black/15 text-current hover:bg-primary-black/25"
           onClick={onDelete}
         >
           <Trash2 size={14} aria-hidden="true" />

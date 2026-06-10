@@ -1,4 +1,4 @@
-import { CircleCheck } from "lucide-react";
+import { CircleCheck, CircleX } from "lucide-react";
 
 import { Card } from "@/shared/components/ui/card";
 import { cn } from "@/shared/lib/utils";
@@ -8,32 +8,28 @@ import type { ScheduleEvent, SchedulePeriod } from "../types/schedule";
 import {
   getScheduleEventPosition,
   getScheduleEventTimeLabel,
+  isScheduleEventMissed,
 } from "../utils/schedule-time";
-
-import { ScheduleEventCardDetails } from "./ScheduleEventCardDetails";
 
 type ScheduleEventCardProps = {
   event: ScheduleEvent;
   period: SchedulePeriod;
+  currentDate: Date;
   lane: number;
-  isOpen: boolean;
   onOpenChange: (eventId: string) => void;
-  onDelete: (eventId: string) => void;
-  onToggleCompleted: (eventId: string) => void;
 };
 
 export function ScheduleEventCard({
   event,
   period,
+  currentDate,
   lane,
-  isOpen,
   onOpenChange,
-  onDelete,
-  onToggleCompleted,
 }: ScheduleEventCardProps) {
   const eventStyle = getScheduleEventPosition(event, period, lane);
   const eventTone = event.tone ?? "slate";
   const eventTimeLabel = getScheduleEventTimeLabel(event);
+  const isMissed = isScheduleEventMissed(event, currentDate);
 
   return (
     <Card
@@ -42,7 +38,8 @@ export function ScheduleEventCard({
         SCHEDULE_EVENT_TONE_CLASS_NAMES[eventTone],
         event.completed &&
           "border-schedule-completed-border opacity-75 shadow-schedule-completed-border/20",
-        isOpen && "z-20 min-w-56 shadow-xl",
+        isMissed &&
+          "border-schedule-missed-border opacity-80 shadow-schedule-missed-border/20",
       )}
       style={eventStyle}
     >
@@ -50,7 +47,6 @@ export function ScheduleEventCard({
         type="button"
         className="w-full text-left outline-none"
         onClick={() => onOpenChange(event.id)}
-        aria-expanded={isOpen}
       >
         <span className="flex min-w-0 items-center gap-1.5">
           {event.completed ? (
@@ -58,6 +54,14 @@ export function ScheduleEventCard({
               size={14}
               className="shrink-0 text-schedule-completed-icon"
               aria-label="Concluído"
+            />
+          ) : null}
+
+          {isMissed ? (
+            <CircleX
+              size={14}
+              className="shrink-0 text-schedule-missed-icon"
+              aria-label="Não feito"
             />
           ) : null}
 
@@ -74,15 +78,6 @@ export function ScheduleEventCard({
           {eventTimeLabel}
         </p>
       </button>
-
-      {isOpen ? (
-        <ScheduleEventCardDetails
-          event={event}
-          timeLabel={eventTimeLabel}
-          onDelete={() => onDelete(event.id)}
-          onToggleCompleted={() => onToggleCompleted(event.id)}
-        />
-      ) : null}
     </Card>
   );
 }
