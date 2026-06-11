@@ -148,8 +148,6 @@ export function HomePage() {
       return;
     }
 
-    setDayRange(nextDayRange);
-
     const startMinutes = getMinutesFromTime(nextDayRange.startTime);
     const endMinutes = getMinutesFromTime(nextDayRange.endTime);
 
@@ -157,6 +155,8 @@ export function HomePage() {
       toast.warning("O fim do dia precisa ser depois do começo.");
       return;
     }
+
+    setDayRange(nextDayRange);
 
     toast.success(
       `Horário do dia atualizado: ${nextDayRange.startTime} - ${nextDayRange.endTime}.`,

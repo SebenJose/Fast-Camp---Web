@@ -8,6 +8,10 @@ import { ForgotPasswordSuccessCard } from "./ForgotPasswordSuccessCard";
 
 type Step = "request" | "verify" | "reset" | "success";
 
+function assertNever(value: never): never {
+  throw new Error(`Etapa de recuperação inválida: ${value}`);
+}
+
 export function ForgotPasswordFormSwitcher() {
   const [step, setStep] = useState<Step>("request");
   const [email, setEmail] = useState("");
@@ -46,6 +50,6 @@ export function ForgotPasswordFormSwitcher() {
     case "success":
       return <ForgotPasswordSuccessCard />;
     default:
-      return null;
+      return assertNever(step);
   }
 }

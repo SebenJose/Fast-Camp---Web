@@ -14,10 +14,7 @@ import {
   SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME,
   SCHEDULE_EVENT_TONE_OPTIONS,
 } from "../constants/schedule";
-import type {
-  ScheduleEventFormValues,
-  ScheduleEventTone,
-} from "../types/schedule";
+import type { ScheduleEventFormValues } from "../types/schedule";
 
 import { ScheduleFormField } from "./ScheduleFormField";
 import { ScheduleTimeSelect } from "./ScheduleTimeSelect";
@@ -27,6 +24,11 @@ type ScheduleEventFormProps = {
   onChange: (values: ScheduleEventFormValues) => void;
   onSubmit: () => void;
 };
+
+function getScheduleEventTone(value: string) {
+  return SCHEDULE_EVENT_TONE_OPTIONS.find((option) => option.value === value)
+    ?.value;
+}
 
 export function ScheduleEventForm({
   values,
@@ -71,12 +73,18 @@ export function ScheduleEventForm({
       <ScheduleFormField label="Cor">
         <Select
           value={values.tone}
-          onValueChange={(tone) =>
+          onValueChange={(tone) => {
+            const selectedTone = getScheduleEventTone(tone);
+
+            if (!selectedTone) {
+              return;
+            }
+
             onChange({
               ...values,
-              tone: tone as ScheduleEventTone,
-            })
-          }
+              tone: selectedTone,
+            });
+          }}
         >
           <SelectTrigger className="h-10 w-full rounded-xl border-app-border bg-input-opaque px-3 text-sm font-medium text-primary-title hover:bg-card-opaque focus-visible:border-secundary-title/60 focus-visible:ring-secundary-title/20">
             <SelectValue />
