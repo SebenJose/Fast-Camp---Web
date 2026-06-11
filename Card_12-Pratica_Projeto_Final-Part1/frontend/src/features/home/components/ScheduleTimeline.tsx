@@ -29,7 +29,7 @@ export function ScheduleTimeline({
   return (
     <div className="min-w-0 overflow-x-auto pb-1">
       <div
-        className="relative min-w-[42rem]"
+        className="relative min-w-2xl"
         style={{ height: `${timelineHeight}px` }}
       >
         <div className="absolute inset-x-0 top-4">
