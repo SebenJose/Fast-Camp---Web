@@ -1,3 +1,8 @@
+import type { FormEvent } from "react";
+import { useState } from "react";
+
+import { Button } from "@/shared/components/ui/button";
+
 import type { ScheduleDayRange } from "../types/schedule";
 
 import { ScheduleFormField } from "./ScheduleFormField";
@@ -5,15 +10,36 @@ import { ScheduleTimeSelect } from "./ScheduleTimeSelect";
 
 type ScheduleDayRangeFormProps = {
   value: ScheduleDayRange;
-  onChange: (value: ScheduleDayRange) => void;
+  onSubmit: (value: ScheduleDayRange) => Promise<boolean>;
+  disabled?: boolean;
+  isSubmitting?: boolean;
 };
 
 export function ScheduleDayRangeForm({
   value,
-  onChange,
+  onSubmit,
+  disabled = false,
+  isSubmitting = false,
 }: ScheduleDayRangeFormProps) {
+  const [draftValue, setDraftValue] = useState(value);
+  const hasChanges =
+    draftValue.startTime !== value.startTime || draftValue.endTime !== value.endTime;
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (disabled || !hasChanges) {
+      return;
+    }
+
+    void onSubmit(draftValue);
+  }
+
   return (
-    <div className="grid gap-3 rounded-2xl border border-app-border bg-input-opaque/55 p-4 sm:grid-cols-[1fr_8.5rem_8.5rem] sm:items-end">
+    <form
+      onSubmit={handleSubmit}
+      className="grid gap-3 rounded-2xl border border-app-border bg-input-opaque/55 p-4 sm:grid-cols-[1fr_8.5rem_8.5rem_auto] sm:items-end"
+    >
       <div>
         <p className="text-sm font-semibold text-primary-title">
           Horário visível do dia
@@ -25,17 +51,32 @@ export function ScheduleDayRangeForm({
 
       <ScheduleFormField label="Começa">
         <ScheduleTimeSelect
-          value={value.startTime}
-          onChange={(startTime) => onChange({ ...value, startTime })}
+          value={draftValue.startTime}
+          onChange={(startTime) =>
+            setDraftValue((currentValue) => ({ ...currentValue, startTime }))
+          }
+          disabled={disabled}
         />
       </ScheduleFormField>
 
       <ScheduleFormField label="Termina">
         <ScheduleTimeSelect
-          value={value.endTime}
-          onChange={(endTime) => onChange({ ...value, endTime })}
+          value={draftValue.endTime}
+          onChange={(endTime) =>
+            setDraftValue((currentValue) => ({ ...currentValue, endTime }))
+          }
+          disabled={disabled}
         />
       </ScheduleFormField>
-    </div>
+
+      <Button
+        type="submit"
+        className="self-end"
+        disabled={disabled || !hasChanges}
+        aria-busy={isSubmitting}
+      >
+        {isSubmitting ? "Salvando..." : "Aplicar"}
+      </Button>
+    </form>
   );
 }

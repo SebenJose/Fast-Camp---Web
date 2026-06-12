@@ -48,3 +48,9 @@ export type ScheduleMetric = {
   icon: LucideIcon;
   label: string;
 };
+
+export type SchedulePendingAction =
+  | "add-event"
+  | "delete-event"
+  | "toggle-event"
+  | "day-range";

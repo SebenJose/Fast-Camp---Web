@@ -1,25 +1,22 @@
 import { INITIAL_SCHEDULE_DAY_RANGE } from "../constants/schedule";
+import {
+  storedScheduleSchema,
+  type StoredSchedule,
+} from "../schemas/schedule-schemas";
 import type {
   ScheduleDayRange,
   ScheduleEvent,
-  ScheduleEventTone,
+  ScheduleEventFormValues,
   SchedulePeriod,
 } from "../types/schedule";
-import { sortScheduleEvents } from "../utils/schedule-time";
-
-type StoredSchedule = {
-  dayRange: ScheduleDayRange;
-  eventsByPeriodId: Record<string, ScheduleEvent[]>;
-};
+import {
+  getVisibleSchedulePeriods,
+  isEventInsideDayRange,
+  isEventStartingInsidePeriod,
+  sortScheduleEvents,
+} from "../utils/schedule-time";
 
 const SCHEDULE_STORAGE_KEY_PREFIX = "organiza-ai:schedule";
-const SCHEDULE_EVENT_TONES: ScheduleEventTone[] = [
-  "slate",
-  "mint",
-  "sky",
-  "amber",
-  "rose",
-];
 
 function getUserScheduleStorageKey(userId: string) {
   return `${SCHEDULE_STORAGE_KEY_PREFIX}:${userId}`;
@@ -29,63 +26,51 @@ function isBrowser() {
   return typeof window !== "undefined";
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function getBaseStoredSchedule(basePeriods: SchedulePeriod[]): StoredSchedule {
+  return {
+    dayRange: INITIAL_SCHEDULE_DAY_RANGE,
+    eventsByPeriodId: basePeriods.reduce<Record<string, ScheduleEvent[]>>(
+      (eventsByPeriodId, period) => ({
+        ...eventsByPeriodId,
+        [period.id]: sortScheduleEvents(period.events),
+      }),
+      {},
+    ),
+  };
 }
 
-function isScheduleDayRange(value: unknown): value is ScheduleDayRange {
-  return (
-    isRecord(value) &&
-    typeof value.startTime === "string" &&
-    typeof value.endTime === "string"
-  );
-}
-
-function isScheduleEventTone(value: unknown): value is ScheduleEventTone {
-  return (
-    typeof value === "string" &&
-    SCHEDULE_EVENT_TONES.includes(value as ScheduleEventTone)
-  );
-}
-
-function isScheduleEvent(value: unknown): value is ScheduleEvent {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.title === "string" &&
-    typeof value.startTime === "string" &&
-    typeof value.endTime === "string" &&
-    (value.tone === undefined || isScheduleEventTone(value.tone)) &&
-    (value.completed === undefined || typeof value.completed === "boolean")
-  );
+function getPeriodsFromStoredSchedule(
+  basePeriods: SchedulePeriod[],
+  storedSchedule: StoredSchedule,
+) {
+  return basePeriods.map((period) => ({
+    ...period,
+    events: storedSchedule.eventsByPeriodId[period.id] ?? [],
+  }));
 }
 
 function parseStoredSchedule(value: unknown): StoredSchedule | null {
-  if (!isRecord(value) || !isScheduleDayRange(value.dayRange)) {
-    return null;
-  }
+  const parsedSchedule = storedScheduleSchema.safeParse(value);
 
-  if (!isRecord(value.eventsByPeriodId)) {
+  if (!parsedSchedule.success) {
     return null;
   }
 
   const eventsByPeriodId: Record<string, ScheduleEvent[]> = {};
 
-  for (const [periodId, events] of Object.entries(value.eventsByPeriodId)) {
-    if (!Array.isArray(events) || !events.every(isScheduleEvent)) {
-      return null;
-    }
-
+  for (const [periodId, events] of Object.entries(
+    parsedSchedule.data.eventsByPeriodId,
+  )) {
     eventsByPeriodId[periodId] = sortScheduleEvents(events);
   }
 
   return {
-    dayRange: value.dayRange,
+    dayRange: parsedSchedule.data.dayRange,
     eventsByPeriodId,
   };
 }
 
-function getStoredSchedule(userId: string) {
+function getStoredSchedule(userId: string): StoredSchedule | null {
   if (!isBrowser()) {
     return null;
   }
@@ -105,50 +90,199 @@ function getStoredSchedule(userId: string) {
   }
 }
 
-export function loadUserSchedule(
+function getStoredScheduleOrDefault(
   userId: string,
   basePeriods: SchedulePeriod[],
 ) {
-  const storedSchedule = getStoredSchedule(userId);
+  return getStoredSchedule(userId) ?? getBaseStoredSchedule(basePeriods);
+}
 
-  if (!storedSchedule) {
+function saveStoredSchedule(userId: string, schedule: StoredSchedule) {
+  if (!isBrowser()) {
+    return null;
+  }
+
+  const storedSchedule = storedScheduleSchema.safeParse(schedule);
+
+  if (!storedSchedule.success) {
+    return null;
+  }
+
+  window.localStorage.setItem(
+    getUserScheduleStorageKey(userId),
+    JSON.stringify(storedSchedule.data),
+  );
+
+  return storedSchedule.data;
+}
+
+export function loadUserStoredSchedule(
+  userId: string,
+  basePeriods: SchedulePeriod[],
+) {
+  return getStoredScheduleOrDefault(userId, basePeriods);
+}
+
+export function updateUserScheduleDayRange(
+  userId: string,
+  dayRange: ScheduleDayRange,
+  basePeriods: SchedulePeriod[],
+) {
+  const currentSchedule = loadUserStoredSchedule(userId, basePeriods);
+  const nextSchedule = saveStoredSchedule(userId, {
+    ...currentSchedule,
+    dayRange,
+  });
+
+  if (!nextSchedule) {
+    return null;
+  }
+
+  return nextSchedule;
+}
+
+export function createUserScheduleEvent(
+  userId: string,
+  eventValues: ScheduleEventFormValues,
+  basePeriods: SchedulePeriod[],
+) {
+  const currentSchedule = loadUserStoredSchedule(userId, basePeriods);
+  const currentPeriods = getPeriodsFromStoredSchedule(
+    basePeriods,
+    currentSchedule,
+  );
+  const visiblePeriods = getVisibleSchedulePeriods(
+    currentPeriods,
+    currentSchedule.dayRange,
+  );
+
+  if (!isEventInsideDayRange(eventValues, currentSchedule.dayRange)) {
     return {
-      dayRange: INITIAL_SCHEDULE_DAY_RANGE,
-      periods: basePeriods,
+      ok: false as const,
+      message: "Esse horario esta fora do intervalo visivel do dia.",
+    };
+  }
+
+  const targetPeriod = visiblePeriods.find((period) =>
+    isEventStartingInsidePeriod(eventValues, period),
+  );
+
+  if (!targetPeriod) {
+    return {
+      ok: false as const,
+      message: "Esse horario esta fora do intervalo visivel do dia.",
+    };
+  }
+
+  const newEvent: ScheduleEvent = {
+    id: globalThis.crypto?.randomUUID() ?? `event-${Date.now()}`,
+    title: eventValues.title.trim(),
+    startTime: eventValues.startTime,
+    endTime: eventValues.endTime,
+    tone: eventValues.tone,
+  };
+  const targetEvents = currentSchedule.eventsByPeriodId[targetPeriod.id] ?? [];
+  const nextSchedule = saveStoredSchedule(userId, {
+    ...currentSchedule,
+    eventsByPeriodId: {
+      ...currentSchedule.eventsByPeriodId,
+      [targetPeriod.id]: sortScheduleEvents([...targetEvents, newEvent]),
+    },
+  });
+
+  if (!nextSchedule) {
+    return {
+      ok: false as const,
+      message: "Nao foi possivel criar o card.",
     };
   }
 
   return {
-    dayRange: storedSchedule.dayRange,
-    periods: basePeriods.map((period) => ({
-      ...period,
-      events: storedSchedule.eventsByPeriodId[period.id] ?? [],
-    })),
+    ok: true as const,
+    schedule: nextSchedule,
+    event: newEvent,
   };
 }
 
-export function saveUserSchedule(
+export function deleteUserScheduleEvent(
   userId: string,
-  dayRange: ScheduleDayRange,
-  periods: SchedulePeriod[],
+  eventId: string,
+  basePeriods: SchedulePeriod[],
 ) {
-  if (!isBrowser()) {
-    return;
+  const currentSchedule = loadUserStoredSchedule(userId, basePeriods);
+  const events = Object.values(currentSchedule.eventsByPeriodId).flat();
+  const deletedEvent = events.find((event) => event.id === eventId) ?? null;
+
+  if (!deletedEvent) {
+    return {
+      ok: false as const,
+      message: "Card nao encontrado.",
+    };
   }
 
-  const eventsByPeriodId = periods.reduce<Record<string, ScheduleEvent[]>>(
-    (eventsByPeriod, period) => ({
-      ...eventsByPeriod,
-      [period.id]: period.events,
-    }),
-    {},
-  );
+  const nextSchedule = saveStoredSchedule(userId, {
+    ...currentSchedule,
+    eventsByPeriodId: Object.fromEntries(
+      Object.entries(currentSchedule.eventsByPeriodId).map(
+        ([periodId, periodEvents]) => [
+          periodId,
+          periodEvents.filter((event) => event.id !== eventId),
+        ],
+      ),
+    ),
+  });
 
-  window.localStorage.setItem(
-    getUserScheduleStorageKey(userId),
-    JSON.stringify({
-      dayRange,
-      eventsByPeriodId,
-    }),
-  );
+  if (!nextSchedule) {
+    return {
+      ok: false as const,
+      message: "Nao foi possivel excluir o card.",
+    };
+  }
+
+  return {
+    ok: true as const,
+    schedule: nextSchedule,
+    event: deletedEvent,
+  };
+}
+
+export function toggleUserScheduleEventCompleted(
+  userId: string,
+  eventId: string,
+  basePeriods: SchedulePeriod[],
+) {
+  const currentSchedule = loadUserStoredSchedule(userId, basePeriods);
+  let updatedEvent: ScheduleEvent | null = null;
+  const nextSchedule = saveStoredSchedule(userId, {
+    ...currentSchedule,
+    eventsByPeriodId: Object.fromEntries(
+      Object.entries(currentSchedule.eventsByPeriodId).map(
+        ([periodId, periodEvents]) => [
+          periodId,
+          periodEvents.map((event) => {
+            if (event.id !== eventId) {
+              return event;
+            }
+
+            updatedEvent = { ...event, completed: !event.completed };
+
+            return updatedEvent;
+          }),
+        ],
+      ),
+    ),
+  });
+
+  if (!nextSchedule || !updatedEvent) {
+    return {
+      ok: false as const,
+      message: "Nao foi possivel atualizar o card.",
+    };
+  }
+
+  return {
+    ok: true as const,
+    schedule: nextSchedule,
+    event: updatedEvent,
+  };
 }

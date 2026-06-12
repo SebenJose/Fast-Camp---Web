@@ -17,6 +17,9 @@ type ScheduleEventDialogProps = {
   onOpenChange: (open: boolean) => void;
   onDelete: (eventId: string) => void;
   onToggleCompleted: (eventId: string) => void;
+  disabled?: boolean;
+  isDeleting?: boolean;
+  isToggling?: boolean;
 };
 
 export function ScheduleEventDialog({
@@ -25,6 +28,9 @@ export function ScheduleEventDialog({
   onOpenChange,
   onDelete,
   onToggleCompleted,
+  disabled = false,
+  isDeleting = false,
+  isToggling = false,
 }: ScheduleEventDialogProps) {
   if (!event) {
     return null;
@@ -49,6 +55,9 @@ export function ScheduleEventDialog({
           timeLabel={timeLabel}
           onDelete={() => onDelete(event.id)}
           onToggleCompleted={() => onToggleCompleted(event.id)}
+          disabled={disabled}
+          isDeleting={isDeleting}
+          isToggling={isToggling}
         />
       </DialogContent>
     </Dialog>

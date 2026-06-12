@@ -82,18 +82,19 @@ export function getVisibleSchedulePeriods(
     (currentPeriod, nextPeriod) =>
       currentPeriod.startHour - nextPeriod.startHour,
   );
+  const events = sortScheduleEvents(periods.flatMap((period) => period.events));
   const firstPeriod = sortedPeriods[0];
   const lastPeriod = sortedPeriods[sortedPeriods.length - 1];
 
   if (dayEnd <= firstPeriod.startHour * 60) {
     return [
-      getVisibleSchedulePeriod(firstPeriod, dayStart, dayEnd),
+      getVisibleSchedulePeriod(firstPeriod, dayStart, dayEnd, events),
     ];
   }
 
   if (dayStart >= lastPeriod.endHour * 60) {
     return [
-      getVisibleSchedulePeriod(lastPeriod, dayStart, dayEnd),
+      getVisibleSchedulePeriod(lastPeriod, dayStart, dayEnd, events),
     ];
   }
 
@@ -113,7 +114,7 @@ export function getVisibleSchedulePeriods(
       return [];
     }
 
-    return getVisibleSchedulePeriod(period, visibleStart, visibleEnd);
+    return getVisibleSchedulePeriod(period, visibleStart, visibleEnd, events);
   });
 }
 
@@ -121,14 +122,15 @@ function getVisibleSchedulePeriod(
   period: SchedulePeriod,
   visibleStart: number,
   visibleEnd: number,
+  events: ScheduleEvent[],
 ) {
   return {
     ...period,
     startHour: visibleStart / 60,
     endHour: visibleEnd / 60,
     rangeLabels: getScheduleRangeLabels(visibleStart, visibleEnd),
-    events: period.events.filter((event) =>
-      isEventInsidePeriod(event, {
+    events: events.filter((event) =>
+      isEventOverlappingPeriod(event, {
         startHour: visibleStart / 60,
         endHour: visibleEnd / 60,
       }),
@@ -237,6 +239,41 @@ export function isEventInsidePeriod(
     eventStart >= periodStart &&
     eventEnd <= periodEnd
   );
+}
+
+export function isEventInsideDayRange(
+  event: Pick<ScheduleEvent, "startTime" | "endTime">,
+  dayRange: ScheduleDayRange,
+) {
+  const dayStart = getMinutesFromTime(dayRange.startTime);
+  const dayEnd = getMinutesFromTime(dayRange.endTime);
+  const eventStart = getMinutesFromTime(event.startTime);
+  const eventEnd = getMinutesFromTime(event.endTime);
+
+  return eventEnd > eventStart && eventStart >= dayStart && eventEnd <= dayEnd;
+}
+
+export function isEventStartingInsidePeriod(
+  event: Pick<ScheduleEvent, "startTime">,
+  period: Pick<SchedulePeriod, "startHour" | "endHour">,
+) {
+  const periodStart = period.startHour * 60;
+  const periodEnd = period.endHour * 60;
+  const eventStart = getMinutesFromTime(event.startTime);
+
+  return eventStart >= periodStart && eventStart < periodEnd;
+}
+
+function isEventOverlappingPeriod(
+  event: Pick<ScheduleEvent, "startTime" | "endTime">,
+  period: Pick<SchedulePeriod, "startHour" | "endHour">,
+) {
+  const periodStart = period.startHour * 60;
+  const periodEnd = period.endHour * 60;
+  const eventStart = getMinutesFromTime(event.startTime);
+  const eventEnd = getMinutesFromTime(event.endTime);
+
+  return eventEnd > eventStart && eventStart < periodEnd && eventEnd > periodStart;
 }
 
 export function getNextScheduleEvent(

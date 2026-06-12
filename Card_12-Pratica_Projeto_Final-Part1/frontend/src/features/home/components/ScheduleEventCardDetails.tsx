@@ -20,6 +20,9 @@ type ScheduleEventCardDetailsProps = {
   timeLabel: string;
   onDelete: () => void;
   onToggleCompleted: () => void;
+  disabled?: boolean;
+  isDeleting?: boolean;
+  isToggling?: boolean;
 };
 
 export function ScheduleEventCardDetails({
@@ -27,6 +30,9 @@ export function ScheduleEventCardDetails({
   timeLabel,
   onDelete,
   onToggleCompleted,
+  disabled = false,
+  isDeleting = false,
+  isToggling = false,
 }: ScheduleEventCardDetailsProps) {
   return (
     <div className="grid gap-4 border-t border-app-border pt-4">
@@ -45,16 +51,23 @@ export function ScheduleEventCardDetails({
           size="sm"
           variant="secondary"
           onClick={onToggleCompleted}
+          disabled={disabled}
+          aria-busy={isToggling}
         >
           <Check size={14} aria-hidden="true" />
-          {event.completed ? "Reabrir" : "Feito"}
+          {isToggling ? "Salvando..." : event.completed ? "Reabrir" : "Feito"}
         </Button>
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button type="button" size="sm" variant="destructive">
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              disabled={disabled}
+            >
               <Trash2 size={14} aria-hidden="true" />
-              Excluir
+              {isDeleting ? "Excluindo..." : "Excluir"}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent className="border border-app-border bg-opaque-black text-primary-title shadow-2xl shadow-black/40">
@@ -73,8 +86,10 @@ export function ScheduleEventCardDetails({
               <AlertDialogAction
                 variant="destructive"
                 onClick={onDelete}
+                disabled={disabled}
+                aria-busy={isDeleting}
               >
-                Excluir
+                {isDeleting ? "Excluindo..." : "Excluir"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

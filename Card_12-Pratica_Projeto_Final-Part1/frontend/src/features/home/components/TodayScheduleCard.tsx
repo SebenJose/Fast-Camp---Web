@@ -10,6 +10,7 @@ import type {
   ScheduleDayRange,
   ScheduleEventFormValues,
   ScheduleMetric,
+  SchedulePendingAction,
   SchedulePeriod,
 } from "../types/schedule";
 
@@ -24,12 +25,13 @@ type TodayScheduleCardProps = {
   periods: SchedulePeriod[];
   currentDate: Date;
   dayRange: ScheduleDayRange;
-  onDayRangeChange: (value: ScheduleDayRange) => void;
+  pendingAction: SchedulePendingAction | null;
+  onDayRangeChange: (value: ScheduleDayRange) => Promise<boolean>;
   eventFormValues: ScheduleEventFormValues;
   onEventFormChange: (values: ScheduleEventFormValues) => void;
-  onAddEvent: () => void;
-  onDeleteEvent: (eventId: string) => void;
-  onToggleEventCompleted: (eventId: string) => void;
+  onAddEvent: () => Promise<boolean>;
+  onDeleteEvent: (eventId: string) => Promise<boolean>;
+  onToggleEventCompleted: (eventId: string) => Promise<boolean>;
 };
 
 type ScheduleControlsPanel = "day-range" | "event-form";
@@ -39,6 +41,7 @@ export function TodayScheduleCard({
   periods,
   currentDate,
   dayRange,
+  pendingAction,
   onDayRangeChange,
   eventFormValues,
   onEventFormChange,
@@ -53,6 +56,7 @@ export function TodayScheduleCard({
     periods
       .flatMap((period) => period.events)
       .find((event) => event.id === openEventId) ?? null;
+  const isScheduleActionPending = pendingAction !== null;
 
   function handleOpenEvent(eventId: string) {
     setOpenEventId((currentEventId) =>
@@ -60,14 +64,28 @@ export function TodayScheduleCard({
     );
   }
 
-  function handleDeleteEvent(eventId: string) {
-    onDeleteEvent(eventId);
-    setOpenEventId(null);
+  async function handleDeleteEvent(eventId: string) {
+    if (isScheduleActionPending) {
+      return;
+    }
+
+    const isDeleted = await onDeleteEvent(eventId);
+
+    if (isDeleted) {
+      setOpenEventId(null);
+    }
   }
 
-  function handleToggleEventCompleted(eventId: string) {
-    onToggleEventCompleted(eventId);
-    setOpenEventId(null);
+  async function handleToggleEventCompleted(eventId: string) {
+    if (isScheduleActionPending) {
+      return;
+    }
+
+    const isUpdated = await onToggleEventCompleted(eventId);
+
+    if (isUpdated) {
+      setOpenEventId(null);
+    }
   }
 
   function handleOpenControlsPanel(panel: ScheduleControlsPanel) {
@@ -90,6 +108,7 @@ export function TodayScheduleCard({
               }
               onClick={() => handleOpenControlsPanel("day-range")}
               aria-expanded={openControlsPanel === "day-range"}
+              disabled={isScheduleActionPending}
             >
               <SlidersHorizontal size={16} aria-hidden="true" />
               Horário do dia
@@ -102,6 +121,7 @@ export function TodayScheduleCard({
               }
               onClick={() => handleOpenControlsPanel("event-form")}
               aria-expanded={openControlsPanel === "event-form"}
+              disabled={isScheduleActionPending}
             >
               <Plus size={16} aria-hidden="true" />
               Novo card
@@ -110,8 +130,11 @@ export function TodayScheduleCard({
 
           {openControlsPanel === "day-range" ? (
             <ScheduleDayRangeForm
+              key={`${dayRange.startTime}-${dayRange.endTime}`}
               value={dayRange}
-              onChange={onDayRangeChange}
+              onSubmit={onDayRangeChange}
+              disabled={isScheduleActionPending}
+              isSubmitting={pendingAction === "day-range"}
             />
           ) : null}
 
@@ -120,6 +143,8 @@ export function TodayScheduleCard({
               values={eventFormValues}
               onChange={onEventFormChange}
               onSubmit={onAddEvent}
+              disabled={isScheduleActionPending}
+              isSubmitting={pendingAction === "add-event"}
             />
           ) : null}
 
@@ -140,8 +165,8 @@ export function TodayScheduleCard({
         </CardContent>
 
         <p className="mt-5 px-7 pb-5 text-xs font-medium text-app-muted sm:pb-7">
-          Dica: arraste mentalmente o próximo bloco, não o dia inteiro. A tabela
-          mostra apenas o necessário para decidir o próximo passo.
+          Selecione um card para marcar como feito, reabrir ou remover da
+          agenda. As alterações ficam salvas automaticamente para esta conta.
         </p>
       </Card>
 
@@ -155,6 +180,9 @@ export function TodayScheduleCard({
         }}
         onDelete={handleDeleteEvent}
         onToggleCompleted={handleToggleEventCompleted}
+        disabled={isScheduleActionPending}
+        isDeleting={pendingAction === "delete-event"}
+        isToggling={pendingAction === "toggle-event"}
       />
     </section>
   );

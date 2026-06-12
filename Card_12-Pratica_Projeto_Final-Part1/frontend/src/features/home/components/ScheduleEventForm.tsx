@@ -23,6 +23,8 @@ type ScheduleEventFormProps = {
   values: ScheduleEventFormValues;
   onChange: (values: ScheduleEventFormValues) => void;
   onSubmit: () => void;
+  disabled?: boolean;
+  isSubmitting?: boolean;
 };
 
 function getScheduleEventTone(value: string) {
@@ -34,9 +36,16 @@ export function ScheduleEventForm({
   values,
   onChange,
   onSubmit,
+  disabled = false,
+  isSubmitting = false,
 }: ScheduleEventFormProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (disabled) {
+      return;
+    }
+
     onSubmit();
   }
 
@@ -53,6 +62,7 @@ export function ScheduleEventForm({
           }
           className={SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME}
           placeholder="Novo bloco"
+          disabled={disabled}
         />
       </ScheduleFormField>
 
@@ -60,6 +70,7 @@ export function ScheduleEventForm({
         <ScheduleTimeSelect
           value={values.startTime}
           onChange={(startTime) => onChange({ ...values, startTime })}
+          disabled={disabled}
         />
       </ScheduleFormField>
 
@@ -67,12 +78,14 @@ export function ScheduleEventForm({
         <ScheduleTimeSelect
           value={values.endTime}
           onChange={(endTime) => onChange({ ...values, endTime })}
+          disabled={disabled}
         />
       </ScheduleFormField>
 
       <ScheduleFormField label="Cor">
         <Select
           value={values.tone}
+          disabled={disabled}
           onValueChange={(tone) => {
             const selectedTone = getScheduleEventTone(tone);
 
@@ -103,9 +116,14 @@ export function ScheduleEventForm({
         </Select>
       </ScheduleFormField>
 
-      <Button type="submit" className="self-end">
+      <Button
+        type="submit"
+        className="self-end"
+        disabled={disabled}
+        aria-busy={isSubmitting}
+      >
         <Plus size={16} aria-hidden="true" />
-        Adicionar
+        {isSubmitting ? "Adicionando..." : "Adicionar"}
       </Button>
     </form>
   );

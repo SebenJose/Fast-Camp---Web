@@ -17,6 +17,7 @@ const minuteOptions = Array.from({ length: 12 }, (_, index) =>
 type ScheduleTimeSelectProps = {
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 };
 
 function getTimeParts(value: string) {
@@ -28,7 +29,11 @@ function getTimeParts(value: string) {
   };
 }
 
-export function ScheduleTimeSelect({ value, onChange }: ScheduleTimeSelectProps) {
+export function ScheduleTimeSelect({
+  value,
+  onChange,
+  disabled = false,
+}: ScheduleTimeSelectProps) {
   const { hour, minute } = getTimeParts(value);
 
   function handleHourChange(nextHour: string) {
@@ -41,7 +46,7 @@ export function ScheduleTimeSelect({ value, onChange }: ScheduleTimeSelectProps)
 
   return (
     <div className="grid grid-cols-[1fr_1fr] gap-2">
-      <Select value={hour} onValueChange={handleHourChange}>
+      <Select value={hour} onValueChange={handleHourChange} disabled={disabled}>
         <SelectTrigger className="h-10 w-full rounded-xl border-app-border bg-input-opaque px-3 text-sm font-semibold text-primary-title hover:bg-card-opaque focus-visible:border-secundary-title/60 focus-visible:ring-secundary-title/20">
           <SelectValue aria-label={`${hour} horas`}>{hour}</SelectValue>
         </SelectTrigger>
@@ -58,7 +63,11 @@ export function ScheduleTimeSelect({ value, onChange }: ScheduleTimeSelectProps)
         </SelectContent>
       </Select>
 
-      <Select value={minute} onValueChange={handleMinuteChange}>
+      <Select
+        value={minute}
+        onValueChange={handleMinuteChange}
+        disabled={disabled}
+      >
         <SelectTrigger className="h-10 w-full rounded-xl border-app-border bg-input-opaque px-3 text-sm font-semibold text-primary-title hover:bg-card-opaque focus-visible:border-secundary-title/60 focus-visible:ring-secundary-title/20">
           <SelectValue aria-label={`${minute} minutos`}>{minute}</SelectValue>
         </SelectTrigger>
