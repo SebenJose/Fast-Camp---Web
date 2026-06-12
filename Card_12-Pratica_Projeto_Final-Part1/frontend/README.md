@@ -23,7 +23,7 @@ Esta entrega cobre a base visual e navegável do projeto final. A aplicação co
 
 - Login com formulário funcional mockado.
 - Cadastro com nome, e-mail, senha e confirmação de senha.
-- Recuperação de senha em etapas.(apenas vizual)
+- Recuperação de senha em etapas.(apenas visual)
 - Agenda diária como tela principal protegida.
 - Dashboard com métricas e gráficos fictícios.
 - Interface inicial de chat com IA, ainda sem integração real com LLM.
