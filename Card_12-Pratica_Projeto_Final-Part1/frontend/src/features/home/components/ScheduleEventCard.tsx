@@ -34,7 +34,7 @@ export function ScheduleEventCard({
   return (
     <Card
       className={cn(
-        "absolute z-10 gap-0 rounded-xl border px-3 py-2 text-left text-xs shadow-lg shadow-black/20 ring-0 transition-all",
+        "absolute z-10 min-w-0 gap-0 overflow-hidden rounded-xl border px-3 py-2 text-left text-xs shadow-lg shadow-black/20 ring-0 transition-all",
         SCHEDULE_EVENT_TONE_CLASS_NAMES[eventTone],
         event.completed &&
           "border-schedule-completed-border opacity-75 shadow-schedule-completed-border/20",
@@ -67,7 +67,7 @@ export function ScheduleEventCard({
 
           <span
             className={cn(
-              "truncate font-semibold",
+              "min-w-0 flex-1 truncate font-semibold",
               event.completed && "line-through",
             )}
           >

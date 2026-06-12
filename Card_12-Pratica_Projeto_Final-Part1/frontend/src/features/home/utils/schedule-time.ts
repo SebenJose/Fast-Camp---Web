@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 import {
+  SCHEDULE_EVENT_MIN_WIDTH_PERCENT,
   SCHEDULE_TIMELINE_BOTTOM_PADDING,
   SCHEDULE_TIMELINE_EVENT_TOP,
   SCHEDULE_TIMELINE_LANE_HEIGHT,
@@ -73,43 +74,77 @@ export function getVisibleSchedulePeriods(
   const dayStart = getMinutesFromTime(dayRange.startTime);
   const dayEnd = getMinutesFromTime(dayRange.endTime);
 
-  if (dayEnd <= dayStart) {
+  if (dayEnd <= dayStart || periods.length === 0) {
     return [];
   }
 
-  return periods.flatMap((period) => {
+  const sortedPeriods = [...periods].sort(
+    (currentPeriod, nextPeriod) =>
+      currentPeriod.startHour - nextPeriod.startHour,
+  );
+  const firstPeriod = sortedPeriods[0];
+  const lastPeriod = sortedPeriods[sortedPeriods.length - 1];
+
+  if (dayEnd <= firstPeriod.startHour * 60) {
+    return [
+      getVisibleSchedulePeriod(firstPeriod, dayStart, dayEnd),
+    ];
+  }
+
+  if (dayStart >= lastPeriod.endHour * 60) {
+    return [
+      getVisibleSchedulePeriod(lastPeriod, dayStart, dayEnd),
+    ];
+  }
+
+  return sortedPeriods.flatMap((period, index) => {
     const periodStart = period.startHour * 60;
     const periodEnd = period.endHour * 60;
-    const visibleStart = Math.max(periodStart, dayStart);
-    const visibleEnd = Math.min(periodEnd, dayEnd);
+    const isFirstPeriod = index === 0;
+    const isLastPeriod = index === sortedPeriods.length - 1;
+    const visibleStart = isFirstPeriod
+      ? Math.min(dayStart, periodEnd)
+      : Math.max(periodStart, dayStart);
+    const visibleEnd = isLastPeriod
+      ? Math.max(dayEnd, periodStart)
+      : Math.min(periodEnd, dayEnd);
 
     if (visibleEnd <= visibleStart) {
       return [];
     }
 
-    return {
-      ...period,
-      startHour: visibleStart / 60,
-      endHour: visibleEnd / 60,
-      rangeLabels: getScheduleRangeLabels(visibleStart, visibleEnd),
-      events: period.events.filter((event) =>
-        isEventInsidePeriod(event, {
-          startHour: visibleStart / 60,
-          endHour: visibleEnd / 60,
-        }),
-      ),
-    };
+    return getVisibleSchedulePeriod(period, visibleStart, visibleEnd);
   });
+}
+
+function getVisibleSchedulePeriod(
+  period: SchedulePeriod,
+  visibleStart: number,
+  visibleEnd: number,
+) {
+  return {
+    ...period,
+    startHour: visibleStart / 60,
+    endHour: visibleEnd / 60,
+    rangeLabels: getScheduleRangeLabels(visibleStart, visibleEnd),
+    events: period.events.filter((event) =>
+      isEventInsidePeriod(event, {
+        startHour: visibleStart / 60,
+        endHour: visibleEnd / 60,
+      }),
+    ),
+  };
 }
 
 export function getPositionedScheduleEvents(
   events: ScheduleEvent[],
+  period: Pick<SchedulePeriod, "startHour" | "endHour">,
 ): PositionedScheduleEvent[] {
   const laneEndMinutes: number[] = [];
 
   return sortScheduleEvents(events).map((event) => {
     const eventStart = getMinutesFromTime(event.startTime);
-    const eventEnd = getMinutesFromTime(event.endTime);
+    const eventEnd = getScheduleEventVisualEndMinutes(event, period);
     const availableLane = laneEndMinutes.findIndex(
       (laneEnd) => laneEnd <= eventStart,
     );
@@ -151,23 +186,57 @@ export function getScheduleEventPosition(
   lane = 0,
 ): CSSProperties {
   const left = getScheduleTimePosition(event.startTime, period);
-  const right = getScheduleTimePosition(event.endTime, period);
-  const width = right - left;
+  const width = getScheduleEventWidth(event, period);
 
   return {
     top: `${SCHEDULE_TIMELINE_EVENT_TOP + lane * SCHEDULE_TIMELINE_LANE_HEIGHT}px`,
     left: `${left}%`,
-    width: `${Math.min(Math.max(width, 6), 100 - Math.max(left, 0))}%`,
+    width: `${width}%`,
   };
 }
 
-export function isEventInsidePeriod(
-  event: Pick<ScheduleEvent, "startTime">,
+function getScheduleEventWidth(
+  event: ScheduleEvent,
+  period: Pick<SchedulePeriod, "startHour" | "endHour">,
+) {
+  const left = getScheduleTimePosition(event.startTime, period);
+  const right = getScheduleTimePosition(event.endTime, period);
+  const eventWidth = right - left;
+  const remainingWidth = 100 - Math.max(left, 0);
+
+  return Math.min(
+    Math.max(eventWidth, SCHEDULE_EVENT_MIN_WIDTH_PERCENT),
+    remainingWidth,
+  );
+}
+
+function getScheduleEventVisualEndMinutes(
+  event: ScheduleEvent,
   period: Pick<SchedulePeriod, "startHour" | "endHour">,
 ) {
   const eventStart = getMinutesFromTime(event.startTime);
+  const eventEnd = getMinutesFromTime(event.endTime);
+  const periodDuration = period.endHour * 60 - period.startHour * 60;
+  const visualDuration =
+    (periodDuration * getScheduleEventWidth(event, period)) / 100;
 
-  return eventStart >= period.startHour * 60 && eventStart < period.endHour * 60;
+  return Math.max(eventEnd, eventStart + visualDuration);
+}
+
+export function isEventInsidePeriod(
+  event: Pick<ScheduleEvent, "startTime" | "endTime">,
+  period: Pick<SchedulePeriod, "startHour" | "endHour">,
+) {
+  const periodStart = period.startHour * 60;
+  const periodEnd = period.endHour * 60;
+  const eventStart = getMinutesFromTime(event.startTime);
+  const eventEnd = getMinutesFromTime(event.endTime);
+
+  return (
+    eventEnd > eventStart &&
+    eventStart >= periodStart &&
+    eventEnd <= periodEnd
+  );
 }
 
 export function getNextScheduleEvent(

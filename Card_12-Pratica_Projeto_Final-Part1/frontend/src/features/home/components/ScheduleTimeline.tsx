@@ -18,7 +18,7 @@ export function ScheduleTimeline({
   currentDate,
   onOpenEvent,
 }: ScheduleTimelineProps) {
-  const positionedEvents = getPositionedScheduleEvents(period.events);
+  const positionedEvents = getPositionedScheduleEvents(period.events, period);
   const laneCount = positionedEvents.length
     ? Math.max(
         ...positionedEvents.map((positionedEvent) => positionedEvent.lane),
