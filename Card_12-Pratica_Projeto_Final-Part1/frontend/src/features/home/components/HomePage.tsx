@@ -7,11 +7,16 @@ import {
   TODAY_SCHEDULE_METRICS,
   TODAY_SCHEDULE_PERIODS,
 } from "../data/today-schedule";
+import { useAuthStore } from "@/features/auth/stores/auth-store";
 import type { ScheduleDayRange, ScheduleEvent } from "../types/schedule";
 import {
   INITIAL_SCHEDULE_DAY_RANGE,
   INITIAL_SCHEDULE_EVENT_FORM_VALUES,
 } from "../constants/schedule";
+import {
+  loadUserSchedule,
+  saveUserSchedule,
+} from "../lib/schedule-storage";
 import {
   getVisibleSchedulePeriods,
   getMinutesFromTime,
@@ -24,8 +29,20 @@ import { HomeHeader } from "./HomeHeader";
 import { TodayScheduleCard } from "./TodayScheduleCard";
 
 export function HomePage() {
-  const [periods, setPeriods] = useState(TODAY_SCHEDULE_PERIODS);
-  const [dayRange, setDayRange] = useState(INITIAL_SCHEDULE_DAY_RANGE);
+  const session = useAuthStore((store) => store.session);
+  const userId = session?.userId;
+  const initialSchedule = useMemo(
+    () =>
+      userId
+        ? loadUserSchedule(userId, TODAY_SCHEDULE_PERIODS)
+        : {
+            dayRange: INITIAL_SCHEDULE_DAY_RANGE,
+            periods: TODAY_SCHEDULE_PERIODS,
+          },
+    [userId],
+  );
+  const [periods, setPeriods] = useState(() => initialSchedule.periods);
+  const [dayRange, setDayRange] = useState(() => initialSchedule.dayRange);
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [eventFormValues, setEventFormValues] = useState(
     INITIAL_SCHEDULE_EVENT_FORM_VALUES,
@@ -38,6 +55,14 @@ export function HomePage() {
 
     return () => window.clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
+    saveUserSchedule(userId, dayRange, periods);
+  }, [dayRange, periods, userId]);
 
   const visiblePeriods = useMemo(
     () => getVisibleSchedulePeriods(periods, dayRange),
