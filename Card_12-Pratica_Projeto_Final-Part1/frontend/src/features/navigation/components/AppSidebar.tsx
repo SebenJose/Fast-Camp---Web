@@ -24,9 +24,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/shared/components/ui/alert-dialog";
+import { useAuthStore } from "@/features/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar";
 import { cn } from "@/shared/lib/utils";
-import { useAuthStore } from "@/features/auth/stores/auth-store";
 
 interface NavItem {
   id: string;
@@ -81,7 +81,6 @@ export function AppSidebar() {
         isExpanded ? "w-56" : "w-16",
       )}
     >
-      {/* Itens de navegação */}
       <nav className="flex flex-1 flex-col gap-1 overflow-hidden py-3">
         {NAV_ITEMS.map(({ id, label, href, icon: Icon }) => {
           const isActive = pathname === href;

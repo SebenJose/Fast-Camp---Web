@@ -1,4 +1,4 @@
-import { AuthGuard } from "@/features/auth/components";
+import { AuthGuard } from "@/features/auth";
 import { AppSidebar } from "@/features/navigation";
 
 export default function ProtectedLayout({

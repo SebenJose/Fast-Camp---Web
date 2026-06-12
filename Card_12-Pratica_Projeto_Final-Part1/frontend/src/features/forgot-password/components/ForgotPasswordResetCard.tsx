@@ -4,12 +4,12 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { Lock, ArrowLeft } from "lucide-react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/components/ui/card";
+  AUTH_FORM_ERROR_CLASS_NAME,
+  AUTH_ICON_INPUT_CLASS_NAME,
+  AUTH_INLINE_LINK_CLASS_NAME,
+  AUTH_PRIMARY_ACTION_CLASS_NAME,
+  AuthFormCard,
+} from "@/shared/components/auth-form";
 
 type ForgotPasswordResetCardProps = {
   onSubmit: (password: string) => void;
@@ -20,29 +20,30 @@ export function ForgotPasswordResetCard({
 }: ForgotPasswordResetCardProps) {
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    setFormError(null);
+
     if (password !== passwordConfirmation) {
-      alert("As senhas não coincidem.");
+      setFormError("As senhas não coincidem.");
       return;
     }
+
     onSubmit(password);
   };
 
   return (
-    <Card className="w-full max-w-lg rounded-[28px] border-2 border-card-opaque bg-opaque-black p-8 text-primary-title shadow-2xl shadow-black/30 ring-0 sm:p-10">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold tracking-tight text-primary-title sm:text-4xl">
-          Nova Senha
-        </CardTitle>
-        <CardDescription className="max-w-md text-base leading-7 text-secundary-title mt-2">
+    <AuthFormCard
+      title="Nova Senha"
+      description={
+        <>
           Defina sua nova senha de acesso. Certifique-se de usar uma senha
           forte.
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent className="mt-8">
+        </>
+      }
+    >
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-3">
             <label
@@ -56,7 +57,7 @@ export function ForgotPasswordResetCard({
                 <Lock className="h-5 w-5" />
               </span>
               <input
-                className="h-14 w-full rounded-2xl border border-card-opaque bg-input-opaque pl-12 pr-4 text-app-foreground outline-none transition placeholder:text-app-foreground/50 focus:border-app-foreground focus:ring-2 focus:ring-white/20"
+                className={AUTH_ICON_INPUT_CLASS_NAME}
                 id="new-password"
                 name="password"
                 type="password"
@@ -79,7 +80,7 @@ export function ForgotPasswordResetCard({
                 <Lock className="h-5 w-5" />
               </span>
               <input
-                className="h-14 w-full rounded-2xl border border-card-opaque bg-input-opaque pl-12 pr-4 text-app-foreground outline-none transition placeholder:text-app-foreground/50 focus:border-app-foreground focus:ring-2 focus:ring-white/20"
+                className={AUTH_ICON_INPUT_CLASS_NAME}
                 id="confirm-password"
                 name="passwordConfirmation"
                 type="password"
@@ -90,8 +91,12 @@ export function ForgotPasswordResetCard({
             </div>
           </div>
 
+          {formError && (
+            <p className={AUTH_FORM_ERROR_CLASS_NAME}>{formError}</p>
+          )}
+
           <button
-            className="h-14 w-full rounded-2xl bg-app-foreground px-4 text-sm font-bold text-primary-black transition hover:bg-zinc-200 cursor-pointer"
+            className={AUTH_PRIMARY_ACTION_CLASS_NAME}
             type="submit"
           >
             Atualizar senha
@@ -99,7 +104,7 @@ export function ForgotPasswordResetCard({
 
           <div className="flex justify-center pt-2 w-full">
             <Link
-              className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-secundary-title underline underline-offset-4 transition hover:text-primary-title text-center mx-auto"
+              className={`${AUTH_INLINE_LINK_CLASS_NAME} text-center mx-auto`}
               href="/auth"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -107,7 +112,6 @@ export function ForgotPasswordResetCard({
             </Link>
           </div>
         </form>
-      </CardContent>
-    </Card>
+    </AuthFormCard>
   );
 }

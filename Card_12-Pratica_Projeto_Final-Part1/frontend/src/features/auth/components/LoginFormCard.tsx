@@ -7,12 +7,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/components/ui/card";
+  AUTH_FORM_ERROR_CLASS_NAME,
+  AUTH_INPUT_CLASS_NAME,
+  AUTH_PRIMARY_ACTION_CLASS_NAME,
+  AuthFormCard,
+} from "@/shared/components/auth-form";
 import { cn } from "@/shared/lib/utils";
 
 import {
@@ -70,18 +69,15 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
   }
 
   return (
-    <Card className="w-full max-w-lg rounded-[28px] border-2 border-card-opaque bg-opaque-black p-8 text-primary-title shadow-2xl shadow-black/30 ring-0 sm:p-10">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold tracking-tight text-primary-title sm:text-4xl">
-          Acesse sua rotina
-        </CardTitle>
-        <CardDescription className="max-w-md text-base leading-7 text-secundary-title">
+    <AuthFormCard
+      title="Acesse sua rotina"
+      description={
+        <>
           Entre para revisar o plano de hoje ou crie uma conta para montar sua
           primeira semana.
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent className="mt-8">
+        </>
+      }
+    >
         <div className="grid rounded-2xl bg-primary-black p-1">
           <div className="grid grid-cols-2 gap-1">
             <button
@@ -114,7 +110,7 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
               aria-invalid={Boolean(fieldErrors.email)}
               autoComplete="email"
               className={cn(
-                "h-14 w-full rounded-2xl border bg-input-opaque px-4 text-app-foreground outline-none transition placeholder:text-app-foreground/50 focus:ring-2 focus:ring-white/20",
+                AUTH_INPUT_CLASS_NAME,
                 fieldErrors.email
                   ? "border-warning focus:border-warning"
                   : "border-card-opaque focus:border-app-foreground",
@@ -150,7 +146,7 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
               aria-invalid={Boolean(fieldErrors.password)}
               autoComplete="current-password"
               className={cn(
-                "h-14 w-full rounded-2xl border bg-input-opaque px-4 text-app-foreground outline-none transition placeholder:text-app-foreground/50 focus:ring-2 focus:ring-white/20",
+                AUTH_INPUT_CLASS_NAME,
                 fieldErrors.password
                   ? "border-warning focus:border-warning"
                   : "border-card-opaque focus:border-app-foreground",
@@ -167,20 +163,17 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
           </div>
 
           {formError && (
-            <p className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm font-medium text-warning">
-              {formError}
-            </p>
+            <p className={AUTH_FORM_ERROR_CLASS_NAME}>{formError}</p>
           )}
 
           <button
-            className="h-14 w-full rounded-2xl bg-app-foreground px-4 text-sm font-bold text-primary-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-70"
+            className={AUTH_PRIMARY_ACTION_CLASS_NAME}
             disabled={isSubmitting}
             type="submit"
           >
             {isSubmitting ? "Entrando..." : "Entrar"}
           </button>
         </form>
-      </CardContent>
-    </Card>
+    </AuthFormCard>
   );
 }
