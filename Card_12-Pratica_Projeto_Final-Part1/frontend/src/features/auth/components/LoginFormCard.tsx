@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -9,15 +13,60 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
+import { cn } from "@/shared/lib/utils";
+
+import {
+  getZodFieldErrors,
+  type LoginFormData,
+  loginSchema,
+} from "../schemas/auth-schemas";
+import { useAuthStore } from "../stores/auth-store";
+
+const LOGIN_FIELD_NAMES = ["email", "password"] as const satisfies readonly (keyof LoginFormData)[];
 
 type LoginFormCardProps = {
   onShowRegister: () => void;
 };
 
 export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const router = useRouter();
+  const login = useAuthStore((store) => store.login);
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<keyof LoginFormData, string>>
+  >({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    toast.success("Login realizado com sucesso.");
+    setFieldErrors({});
+    setFormError(null);
+
+    const formData = new FormData(event.currentTarget);
+    const parsedLogin = loginSchema.safeParse({
+      email: formData.get("email"),
+      password: formData.get("password"),
+    });
+
+    if (!parsedLogin.success) {
+      setFieldErrors(getZodFieldErrors(parsedLogin.error, LOGIN_FIELD_NAMES));
+      return;
+    }
+
+    setIsSubmitting(true);
+    const result = await login(parsedLogin.data).catch(() => ({
+      ok: false as const,
+      message: "Não foi possível conectar ao serviço de autenticação.",
+    }));
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      setFormError(result.message);
+      return;
+    }
+
+    toast.success(`Bem-vindo de volta, ${result.session.name}.`);
+    router.push("/");
   }
 
   return (
@@ -43,6 +92,7 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
             </button>
             <button
               className="rounded-xl px-4 py-4 text-sm font-semibold text-secundary-title"
+              disabled={isSubmitting}
               onClick={onShowRegister}
               type="button"
             >
@@ -51,7 +101,7 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
           </div>
         </div>
 
-        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-5" noValidate onSubmit={handleSubmit}>
           <div className="space-y-3">
             <label
               className="text-sm font-semibold text-secundary-title"
@@ -60,11 +110,24 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
               E-mail
             </label>
             <input
-              className="h-14 w-full rounded-2xl border border-card-opaque bg-input-opaque px-4 text-app-foreground outline-none transition placeholder:text-app-foreground/50 focus:border-app-foreground focus:ring-2 focus:ring-white/20"
+              aria-describedby={fieldErrors.email ? "email-error" : undefined}
+              aria-invalid={Boolean(fieldErrors.email)}
+              autoComplete="email"
+              className={cn(
+                "h-14 w-full rounded-2xl border bg-input-opaque px-4 text-app-foreground outline-none transition placeholder:text-app-foreground/50 focus:ring-2 focus:ring-white/20",
+                fieldErrors.email
+                  ? "border-warning focus:border-warning"
+                  : "border-card-opaque focus:border-app-foreground",
+              )}
               id="email"
               name="email"
               type="email"
             />
+            {fieldErrors.email && (
+              <p className="text-sm font-medium text-warning" id="email-error">
+                {fieldErrors.email}
+              </p>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -83,18 +146,38 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
               </Link>
             </div>
             <input
-              className="h-14 w-full rounded-2xl border border-card-opaque bg-input-opaque px-4 text-app-foreground outline-none transition placeholder:text-app-foreground/50 focus:border-app-foreground focus:ring-2 focus:ring-white/20"
+              aria-describedby={fieldErrors.password ? "password-error" : undefined}
+              aria-invalid={Boolean(fieldErrors.password)}
+              autoComplete="current-password"
+              className={cn(
+                "h-14 w-full rounded-2xl border bg-input-opaque px-4 text-app-foreground outline-none transition placeholder:text-app-foreground/50 focus:ring-2 focus:ring-white/20",
+                fieldErrors.password
+                  ? "border-warning focus:border-warning"
+                  : "border-card-opaque focus:border-app-foreground",
+              )}
               id="password"
               name="password"
               type="password"
             />
+            {fieldErrors.password && (
+              <p className="text-sm font-medium text-warning" id="password-error">
+                {fieldErrors.password}
+              </p>
+            )}
           </div>
 
+          {formError && (
+            <p className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm font-medium text-warning">
+              {formError}
+            </p>
+          )}
+
           <button
-            className="h-14 w-full rounded-2xl bg-app-foreground px-4 text-sm font-bold text-primary-black transition hover:bg-zinc-200"
+            className="h-14 w-full rounded-2xl bg-app-foreground px-4 text-sm font-bold text-primary-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={isSubmitting}
             type="submit"
           >
-            Entrar
+            {isSubmitting ? "Entrando..." : "Entrar"}
           </button>
         </form>
       </CardContent>

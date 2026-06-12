@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 
 import { Toaster } from "@/shared/components/ui/sonner";
+import { MockProvider } from "@/mocks/MockProvider";
 import { cn } from "@/shared/lib/utils";
 import "@/shared/styles/globals.css";
 
@@ -39,10 +40,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const shouldUseMocks = process.env.NODE_ENV === "development";
+
   return (
     <html lang="pt-BR" className={cn("font-sans", geist.variable)}>
       <body>
-        {children}
+        {shouldUseMocks ? <MockProvider>{children}</MockProvider> : children}
         <Toaster position="top-center" richColors />
       </body>
     </html>
