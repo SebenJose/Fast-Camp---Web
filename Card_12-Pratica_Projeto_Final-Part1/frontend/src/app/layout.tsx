@@ -8,7 +8,21 @@ import "@/shared/styles/globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
+function getMetadataBase() {
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ??
+    "http://localhost:3000";
+
+  try {
+    return new URL(siteUrl);
+  } catch {
+    return new URL("http://localhost:3000");
+  }
+}
+
 export const metadata: Metadata = {
+  metadataBase: getMetadataBase(),
   title: "Organiza.IA",
   description: "Projeto final iniciado com Next.js, React e Tailwind CSS.",
   icons: {
@@ -43,7 +57,11 @@ export default function RootLayout({
   const shouldUseMocks = process.env.NODE_ENV === "development";
 
   return (
-    <html lang="pt-BR" className={cn("font-sans", geist.variable)}>
+    <html
+      lang="pt-BR"
+      className={cn("font-sans", geist.variable)}
+      suppressHydrationWarning
+    >
       <body>
         {shouldUseMocks ? <MockProvider>{children}</MockProvider> : children}
         <Toaster position="top-center" richColors />
