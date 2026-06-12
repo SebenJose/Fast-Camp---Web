@@ -2,14 +2,13 @@
 
 import { BotMessageSquare, Send, Sparkles, StopCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { z } from "zod";
 
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
-
-// Tipos locais
 
 type MessageRole = "user" | "assistant";
 
@@ -20,20 +19,6 @@ interface Message {
   timestamp: Date;
 }
 
-// ---------------------------------------------------------------------------
-// Dados de exemplo — apenas visuais
-// ---------------------------------------------------------------------------
-
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: "1",
-    role: "assistant",
-    content:
-      "Olá! Sou o Organiza.IA, seu assistente de produtividade. Posso te ajudar a organizar sua agenda, criar tarefas, resumir compromissos ou responder dúvidas. Como posso ajudar hoje?",
-    timestamp: new Date(),
-  },
-];
-
 const SUGGESTED_PROMPTS = [
   "Organize minha semana",
   "Quais são meus compromissos de hoje?",
@@ -41,7 +26,19 @@ const SUGGESTED_PROMPTS = [
   "Resuma meu dia",
 ];
 
-// Sub-componentes
+const chatMessageSchema = z.string().trim().min(1);
+
+function getInitialMessages(): Message[] {
+  return [
+    {
+      id: "1",
+      role: "assistant",
+      content:
+        "Olá! Sou o Organiza.IA, seu assistente de produtividade. Posso te ajudar a organizar sua agenda, criar tarefas, resumir compromissos ou responder dúvidas. Como posso ajudar hoje?",
+      timestamp: new Date(),
+    },
+  ];
+}
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === "user";
@@ -53,7 +50,6 @@ function MessageBubble({ message }: { message: Message }) {
         isUser && "flex-row-reverse",
       )}
     >
-      {/* Avatar */}
       {!isUser ? (
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card-opaque text-secundary-title">
           <BotMessageSquare size={16} strokeWidth={1.8} />
@@ -66,7 +62,6 @@ function MessageBubble({ message }: { message: Message }) {
         </Avatar>
       )}
 
-      {/* Bubble */}
       <div
         className={cn(
           "max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
@@ -77,7 +72,6 @@ function MessageBubble({ message }: { message: Message }) {
       >
         {message.content}
 
-        {/* Timestamp */}
         <p className="mt-1.5 text-[10px] text-app-muted">
           {message.timestamp.toLocaleTimeString("pt-BR", {
             hour: "2-digit",
@@ -108,16 +102,15 @@ function TypingIndicator() {
   );
 }
 
-// Componente principal
-
 export function AiChatPage() {
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>(getInitialMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const nextMessageIdRef = useRef(2);
   const responseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isResponsePendingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const hasMessages = messages.length > 1;
 
@@ -126,8 +119,14 @@ export function AiChatPage() {
       if (responseTimeoutRef.current) {
         clearTimeout(responseTimeoutRef.current);
       }
+
+      isResponsePendingRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: "end" });
+  }, [messages, isTyping]);
 
   function createMessageId() {
     const nextId = nextMessageIdRef.current;
@@ -140,16 +139,25 @@ export function AiChatPage() {
       clearTimeout(responseTimeoutRef.current);
       responseTimeoutRef.current = null;
     }
+
+    isResponsePendingRef.current = false;
   }
 
   function handleStopResponse() {
     clearPendingResponse();
     setIsTyping(false);
+    textareaRef.current?.focus();
   }
 
   function handleSend(text: string = input) {
-    const trimmed = text.trim();
-    if (!trimmed || isTyping) return;
+    const parsedMessage = chatMessageSchema.safeParse(text);
+
+    if (!parsedMessage.success || isResponsePendingRef.current) {
+      return;
+    }
+
+    const trimmed = parsedMessage.data;
+    isResponsePendingRef.current = true;
 
     const userMessage: Message = {
       id: createMessageId(),
@@ -162,7 +170,6 @@ export function AiChatPage() {
     setInput("");
     setIsTyping(true);
 
-    // Simula resposta da IA (apenas visual)
     responseTimeoutRef.current = setTimeout(() => {
       const aiMessage: Message = {
         id: createMessageId(),
@@ -173,6 +180,7 @@ export function AiChatPage() {
       };
       setMessages((prev) => [...prev, aiMessage]);
       setIsTyping(false);
+      isResponsePendingRef.current = false;
       responseTimeoutRef.current = null;
     }, 1500);
   }
@@ -186,7 +194,6 @@ export function AiChatPage() {
 
   return (
     <div className="flex h-screen flex-col bg-primary-black">
-      {/* Header */}
       <header className="flex shrink-0 items-center gap-3 border-b border-app-border px-6 py-4">
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-card-opaque text-secundary-title">
           <Sparkles size={18} strokeWidth={1.8} />
@@ -198,34 +205,35 @@ export function AiChatPage() {
           <p className="text-xs text-app-muted">Assistente de produtividade</p>
         </div>
 
-        {/* Status */}
         <div className="ml-auto flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
           <span className="text-xs text-app-muted">Online</span>
         </div>
       </header>
 
-      {/* Messages */}
       <ScrollArea className="flex-1">
-        <div ref={scrollRef} className="flex flex-col py-4">
+        <div className="flex flex-col py-4">
           {messages.map((message) => (
             <MessageBubble key={message.id} message={message} />
           ))}
           {isTyping && <TypingIndicator />}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
-      {/* Suggested prompts — só aparece antes do primeiro envio */}
       {!hasMessages && (
         <div className="shrink-0 flex flex-wrap gap-2 px-6 pb-1">
           {SUGGESTED_PROMPTS.map((prompt) => (
             <button
               key={prompt}
+              type="button"
               onClick={() => handleSend(prompt)}
+              disabled={isTyping}
               className={cn(
                 "rounded-full border border-app-border px-3 py-1.5",
                 "text-xs text-app-muted transition-colors duration-150",
                 "hover:border-secundary-title/50 hover:text-primary-title hover:bg-card-opaque",
+                "disabled:cursor-not-allowed disabled:opacity-40",
               )}
             >
               {prompt}
@@ -234,7 +242,6 @@ export function AiChatPage() {
         </div>
       )}
 
-      {/* Input area */}
       <div className="shrink-0 px-4 pb-3 pt-1">
         <div className="flex items-end gap-2 rounded-xl border border-app-border bg-input-opaque p-2">
           <Textarea
@@ -242,14 +249,27 @@ export function AiChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Escreva uma mensagem... (Enter para enviar, Shift+Enter para nova linha)"
+            placeholder={
+              isTyping
+                ? "Aguarde a IA responder..."
+                : "Escreva uma mensagem... (Enter para enviar, Shift+Enter para nova linha)"
+            }
+            aria-label={
+              isTyping
+                ? "Aguardando resposta da IA"
+                : "Mensagem para o assistente"
+            }
+            disabled={isTyping}
             rows={1}
             className="flex-1 border-none bg-transparent px-2 py-1.5 focus:border-none"
           />
           <Button
+            type="button"
             size="icon"
             onClick={() => (isTyping ? handleStopResponse() : handleSend())}
             disabled={!isTyping && !input.trim()}
+            aria-label={isTyping ? "Parar resposta da IA" : "Enviar mensagem"}
+            aria-busy={isTyping}
             className={cn(
               "shrink-0 transition-all duration-150",
               isTyping
