@@ -10,6 +10,10 @@ function shouldEnableMocking() {
   return process.env.NODE_ENV === "development";
 }
 
+function isApiRequest(request: Request) {
+  return new URL(request.url).pathname.startsWith("/api/");
+}
+
 export function MockProvider({ children }: MockProviderProps) {
   const [isReady, setIsReady] = useState(!shouldEnableMocking());
 
@@ -21,7 +25,11 @@ export function MockProvider({ children }: MockProviderProps) {
     void import("./browser")
       .then(({ worker }) =>
         worker.start({
-          onUnhandledRequest: "bypass",
+          onUnhandledRequest(request, print) {
+            if (isApiRequest(request)) {
+              print.error();
+            }
+          },
         }),
       )
       .finally(() => {

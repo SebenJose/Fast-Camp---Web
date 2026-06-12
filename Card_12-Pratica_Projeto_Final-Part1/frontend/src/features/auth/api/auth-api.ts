@@ -1,10 +1,4 @@
 import {
-  getMockAuthSession,
-  loginMockUser,
-  logoutMockUser,
-  registerMockUser,
-} from "../lib/mock-auth-storage";
-import {
   authApiResponseSchema,
   type AuthApiResponse,
   type LoginFormData,
@@ -23,15 +17,6 @@ export type AuthActionResult =
     };
 
 const AUTH_API_BASE_URL = "/api/auth";
-const MISSING_API_STATUS = 404;
-const shouldUseMockAuthFallback = process.env.NODE_ENV === "development";
-
-function shouldFallbackToMockAuth(response: Response | null) {
-  return (
-    shouldUseMockAuthFallback &&
-    (!response || response.status === MISSING_API_STATUS)
-  );
-}
 
 async function readAuthApiResponse(response: Response): Promise<AuthApiResponse> {
   try {
@@ -47,10 +32,6 @@ async function readAuthApiResponse(response: Response): Promise<AuthApiResponse>
 
 export async function getAuthSession() {
   const response = await fetch(`${AUTH_API_BASE_URL}/session`).catch(() => null);
-
-  if (shouldFallbackToMockAuth(response)) {
-    return getMockAuthSession();
-  }
 
   if (!response) {
     return null;
@@ -73,10 +54,6 @@ export async function loginWithCredentials(
     headers: { "Content-Type": "application/json" },
     method: "POST",
   }).catch(() => null);
-
-  if (shouldFallbackToMockAuth(response)) {
-    return loginMockUser(credentials);
-  }
 
   if (!response) {
     return {
@@ -109,10 +86,6 @@ export async function registerWithCredentials(
     method: "POST",
   }).catch(() => null);
 
-  if (shouldFallbackToMockAuth(response)) {
-    return registerMockUser(credentials);
-  }
-
   if (!response) {
     return {
       ok: false,
@@ -136,11 +109,7 @@ export async function registerWithCredentials(
 }
 
 export async function logoutAuthSession() {
-  const response = await fetch(`${AUTH_API_BASE_URL}/logout`, {
+  await fetch(`${AUTH_API_BASE_URL}/logout`, {
     method: "POST",
   }).catch(() => null);
-
-  if (shouldFallbackToMockAuth(response)) {
-    logoutMockUser();
-  }
 }
