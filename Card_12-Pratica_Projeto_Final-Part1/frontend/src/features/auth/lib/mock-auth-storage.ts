@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from "uuid";
+
 import type { MockAuthSession, MockAuthUser } from "../types/auth";
 import {
   mockAuthSessionSchema,
@@ -103,7 +105,7 @@ export function registerMockUser(data: RegisterFormData) {
   }
 
   const newUser: MockAuthUser = {
-    id: globalThis.crypto?.randomUUID() ?? `user-${Date.now()}`,
+    id: uuidv4(),
     name: data.name,
     email: normalizedEmail,
     password: data.password,
