@@ -25,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/shared/components/ui/alert-dialog";
 import { useAuthStore } from "@/features/auth";
-import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
 import { cn } from "@/shared/lib/utils";
 
 interface NavItem {
@@ -138,7 +138,6 @@ export function AppSidebar() {
           )}
         >
           <Avatar className="h-7 w-7 shrink-0">
-            <AvatarImage src="" alt="Foto de perfil" />
             <AvatarFallback className="bg-card-opaque text-xs text-primary-title">
               {profileInitials}
             </AvatarFallback>
