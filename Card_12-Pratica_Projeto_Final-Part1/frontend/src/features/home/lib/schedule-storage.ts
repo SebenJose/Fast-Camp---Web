@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from "uuid";
+
 import { INITIAL_SCHEDULE_DAY_RANGE } from "../constants/schedule";
 import {
   storedScheduleSchema,
@@ -175,7 +177,7 @@ export function createUserScheduleEvent(
   }
 
   const newEvent: ScheduleEvent = {
-    id: globalThis.crypto?.randomUUID() ?? `event-${Date.now()}`,
+    id: uuidv4(),
     title: eventValues.title.trim(),
     startTime: eventValues.startTime,
     endTime: eventValues.endTime,
