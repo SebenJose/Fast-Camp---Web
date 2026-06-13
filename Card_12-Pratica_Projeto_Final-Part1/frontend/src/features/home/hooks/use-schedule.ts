@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAuthStore } from "@/features/auth";
@@ -7,6 +8,7 @@ import {
   createScheduleEvent,
   deleteScheduleEvent,
   getUserSchedule,
+  type ScheduleActionResult,
   toggleScheduleEventCompleted,
   updateScheduleDayRange,
 } from "../api/schedule-api";
@@ -26,6 +28,7 @@ import {
 import type {
   ScheduleDayRange,
   ScheduleEvent,
+  ScheduleEventFormValues,
   SchedulePendingAction,
   SchedulePeriod,
 } from "../types/schedule";
@@ -38,6 +41,50 @@ import {
 } from "../utils/schedule-time";
 
 const SCHEDULE_EVENT_VALIDATION_TOAST_ID = "schedule-event-validation";
+
+type ScheduleUserMutationVariables = {
+  userId: string;
+};
+
+type CreateScheduleEventMutationVariables = ScheduleUserMutationVariables & {
+  eventValues: ScheduleEventFormValues;
+};
+
+type UpdateScheduleDayRangeMutationVariables = ScheduleUserMutationVariables & {
+  dayRange: ScheduleDayRange;
+};
+
+type ScheduleEventIdMutationVariables = ScheduleUserMutationVariables & {
+  eventId: string;
+};
+
+function getScheduleQueryKey(userId: string): readonly ["schedule", string] {
+  return ["schedule", userId];
+}
+
+function getScheduleMutationKey(
+  action: SchedulePendingAction,
+): readonly ["schedule", SchedulePendingAction] {
+  return ["schedule", action];
+}
+
+function getRequiredUserId(userId: string | undefined) {
+  if (!userId) {
+    throw new Error("Sessao invalida para carregar a agenda.");
+  }
+
+  return userId;
+}
+
+async function fetchUserSchedule(userId: string) {
+  const schedule = await getUserSchedule(userId);
+
+  if (!schedule) {
+    throw new Error("Nao foi possivel carregar sua agenda.");
+  }
+
+  return schedule;
+}
 
 function getPeriodsFromStoredSchedule(storedSchedule: StoredSchedule) {
   return TODAY_SCHEDULE_PERIODS.map((period) => ({
@@ -69,28 +116,61 @@ function showScheduleEventValidationToast(message: string) {
 }
 
 export function useSchedule() {
+  const queryClient = useQueryClient();
   const session = useAuthStore((store) => store.session);
   const userId = session?.userId;
-  const [periods, setPeriods] = useState(getInitialPeriods);
-  const [dayRange, setDayRange] = useState(INITIAL_SCHEDULE_DAY_RANGE);
   const [currentDate, setCurrentDate] = useState(() => new Date());
-  const [isLoadingSchedule, setIsLoadingSchedule] = useState(true);
-  const [pendingScheduleAction, setPendingScheduleAction] =
-    useState<SchedulePendingAction | null>(null);
   const [eventFormValues, setEventFormValues] = useState(
     INITIAL_SCHEDULE_EVENT_FORM_VALUES,
   );
-  const pendingScheduleActionRef = useRef<SchedulePendingAction | null>(null);
-  const isMountedRef = useRef(true);
 
-  useEffect(() => {
-    isMountedRef.current = true;
+  const scheduleQuery = useQuery({
+    enabled: Boolean(userId),
+    queryFn: () => fetchUserSchedule(getRequiredUserId(userId)),
+    queryKey: getScheduleQueryKey(userId ?? ""),
+  });
 
-    return () => {
-      isMountedRef.current = false;
-      pendingScheduleActionRef.current = null;
-    };
-  }, []);
+  function cacheScheduleResult(
+    result: ScheduleActionResult,
+    variables: ScheduleUserMutationVariables,
+  ) {
+    if (!result.ok) {
+      return;
+    }
+
+    queryClient.setQueryData<StoredSchedule>(
+      getScheduleQueryKey(variables.userId),
+      result.schedule,
+    );
+  }
+
+  const createEventMutation = useMutation({
+    mutationFn: ({ eventValues, userId }: CreateScheduleEventMutationVariables) =>
+      createScheduleEvent(userId, eventValues),
+    mutationKey: getScheduleMutationKey("add-event"),
+    onSuccess: (result, variables) => cacheScheduleResult(result, variables),
+  });
+
+  const deleteEventMutation = useMutation({
+    mutationFn: ({ eventId, userId }: ScheduleEventIdMutationVariables) =>
+      deleteScheduleEvent(userId, eventId),
+    mutationKey: getScheduleMutationKey("delete-event"),
+    onSuccess: (result, variables) => cacheScheduleResult(result, variables),
+  });
+
+  const updateDayRangeMutation = useMutation({
+    mutationFn: ({ dayRange, userId }: UpdateScheduleDayRangeMutationVariables) =>
+      updateScheduleDayRange(userId, dayRange),
+    mutationKey: getScheduleMutationKey("day-range"),
+    onSuccess: (result, variables) => cacheScheduleResult(result, variables),
+  });
+
+  const toggleEventMutation = useMutation({
+    mutationFn: ({ eventId, userId }: ScheduleEventIdMutationVariables) =>
+      toggleScheduleEventCompleted(userId, eventId),
+    mutationKey: getScheduleMutationKey("toggle-event"),
+    onSuccess: (result, variables) => cacheScheduleResult(result, variables),
+  });
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -101,41 +181,19 @@ export function useSchedule() {
   }, []);
 
   useEffect(() => {
-    if (!userId) {
-      return;
+    if (scheduleQuery.isError) {
+      toast.error("Nao foi possivel carregar sua agenda.");
     }
+  }, [scheduleQuery.isError]);
 
-    const currentUserId = userId;
-    let isActive = true;
-
-    async function hydrateSchedule() {
-      setIsLoadingSchedule(true);
-
-      const schedule = await getUserSchedule(currentUserId).catch(() => null);
-
-      if (!isActive) {
-        return;
-      }
-
-      if (!schedule) {
-        setDayRange(INITIAL_SCHEDULE_DAY_RANGE);
-        setPeriods(getInitialPeriods());
-        setIsLoadingSchedule(false);
-        toast.error("Nao foi possivel carregar sua agenda.");
-        return;
-      }
-
-      setDayRange(schedule.dayRange);
-      setPeriods(getPeriodsFromStoredSchedule(schedule));
-      setIsLoadingSchedule(false);
-    }
-
-    void hydrateSchedule();
-
-    return () => {
-      isActive = false;
-    };
-  }, [userId]);
+  const dayRange = scheduleQuery.data?.dayRange ?? INITIAL_SCHEDULE_DAY_RANGE;
+  const periods = useMemo(
+    () =>
+      scheduleQuery.data
+        ? getPeriodsFromStoredSchedule(scheduleQuery.data)
+        : getInitialPeriods(),
+    [scheduleQuery.data],
+  );
 
   const visiblePeriods = useMemo(
     () => getVisibleSchedulePeriods(periods, dayRange),
@@ -162,36 +220,39 @@ export function useSchedule() {
     });
   }, [visibleEvents]);
 
-  function applyStoredSchedule(schedule: StoredSchedule) {
-    if (!isMountedRef.current) {
-      return;
+  const pendingScheduleAction = useMemo<SchedulePendingAction | null>(() => {
+    if (updateDayRangeMutation.isPending) {
+      return "day-range";
     }
 
-    setDayRange(schedule.dayRange);
-    setPeriods(getPeriodsFromStoredSchedule(schedule));
-  }
+    if (createEventMutation.isPending) {
+      return "add-event";
+    }
 
-  function startScheduleAction(action: SchedulePendingAction) {
-    if (pendingScheduleActionRef.current) {
+    if (deleteEventMutation.isPending) {
+      return "delete-event";
+    }
+
+    if (toggleEventMutation.isPending) {
+      return "toggle-event";
+    }
+
+    return null;
+  }, [
+    createEventMutation.isPending,
+    deleteEventMutation.isPending,
+    toggleEventMutation.isPending,
+    updateDayRangeMutation.isPending,
+  ]);
+  const isLoadingSchedule = !userId || scheduleQuery.isPending;
+
+  function canStartScheduleAction() {
+    if (pendingScheduleAction) {
       toast.info("Aguarde a atualização atual terminar.");
       return false;
     }
 
-    pendingScheduleActionRef.current = action;
-    setPendingScheduleAction(action);
     return true;
-  }
-
-  function finishScheduleAction(action: SchedulePendingAction) {
-    if (pendingScheduleActionRef.current !== action) {
-      return;
-    }
-
-    pendingScheduleActionRef.current = null;
-
-    if (isMountedRef.current) {
-      setPendingScheduleAction(null);
-    }
   }
 
   async function addEvent() {
@@ -232,46 +293,38 @@ export function useSchedule() {
       return false;
     }
 
-    const action = "add-event";
-
-    if (!startScheduleAction(action)) {
+    if (!canStartScheduleAction()) {
       return false;
     }
 
-    try {
-      const result = await createScheduleEvent(userId, eventValues);
+    const result = await createEventMutation.mutateAsync({
+      eventValues,
+      userId,
+    });
 
-      if (!isMountedRef.current) {
-        return false;
-      }
-
-      if (!result.ok) {
-        toast.error(result.message);
-        return false;
-      }
-
-      const endMinutes = getMinutesFromTime(eventValues.endTime);
-      const nextStartMinutes = endMinutes;
-      const nextEndMinutes = Math.min(endMinutes + 30, targetPeriod.endHour * 60);
-      const hasNextSlot = nextEndMinutes > nextStartMinutes;
-
-      applyStoredSchedule(result.schedule);
-      setEventFormValues((currentValues) => ({
-        ...INITIAL_SCHEDULE_EVENT_FORM_VALUES,
-        startTime: hasNextSlot
-          ? getTimeFromMinutes(nextStartMinutes)
-          : INITIAL_SCHEDULE_EVENT_FORM_VALUES.startTime,
-        endTime: hasNextSlot
-          ? getTimeFromMinutes(nextEndMinutes)
-          : INITIAL_SCHEDULE_EVENT_FORM_VALUES.endTime,
-        tone: currentValues.tone,
-      }));
-
-      toast.success("Card criado com sucesso.");
-      return true;
-    } finally {
-      finishScheduleAction(action);
+    if (!result.ok) {
+      toast.error(result.message);
+      return false;
     }
+
+    const endMinutes = getMinutesFromTime(eventValues.endTime);
+    const nextStartMinutes = endMinutes;
+    const nextEndMinutes = Math.min(endMinutes + 30, targetPeriod.endHour * 60);
+    const hasNextSlot = nextEndMinutes > nextStartMinutes;
+
+    setEventFormValues((currentValues) => ({
+      ...INITIAL_SCHEDULE_EVENT_FORM_VALUES,
+      startTime: hasNextSlot
+        ? getTimeFromMinutes(nextStartMinutes)
+        : INITIAL_SCHEDULE_EVENT_FORM_VALUES.startTime,
+      endTime: hasNextSlot
+        ? getTimeFromMinutes(nextEndMinutes)
+        : INITIAL_SCHEDULE_EVENT_FORM_VALUES.endTime,
+      tone: currentValues.tone,
+    }));
+
+    toast.success("Card criado com sucesso.");
+    return true;
   }
 
   async function deleteEvent(eventId: string) {
@@ -283,32 +336,22 @@ export function useSchedule() {
     const deletedEvent = periods
       .flatMap((period) => period.events)
       .find((event) => event.id === eventId);
-    const action = "delete-event";
 
-    if (!startScheduleAction(action)) {
+    if (!canStartScheduleAction()) {
       return false;
     }
 
-    try {
-      const result = await deleteScheduleEvent(userId, eventId);
+    const result = await deleteEventMutation.mutateAsync({ eventId, userId });
 
-      if (!isMountedRef.current) {
-        return false;
-      }
-
-      if (!result.ok) {
-        toast.error(result.message);
-        return false;
-      }
-
-      applyStoredSchedule(result.schedule);
-      toast.success(
-        deletedEvent ? `Card "${deletedEvent.title}" excluído.` : "Card excluído.",
-      );
-      return true;
-    } finally {
-      finishScheduleAction(action);
+    if (!result.ok) {
+      toast.error(result.message);
+      return false;
     }
+
+    toast.success(
+      deletedEvent ? `Card "${deletedEvent.title}" excluído.` : "Card excluído.",
+    );
+    return true;
   }
 
   async function updateDayRange(nextDayRange: ScheduleDayRange) {
@@ -336,32 +379,24 @@ export function useSchedule() {
       return false;
     }
 
-    const action = "day-range";
-
-    if (!startScheduleAction(action)) {
+    if (!canStartScheduleAction()) {
       return false;
     }
 
-    try {
-      const result = await updateScheduleDayRange(userId, parsedDayRange.data);
+    const result = await updateDayRangeMutation.mutateAsync({
+      dayRange: parsedDayRange.data,
+      userId,
+    });
 
-      if (!isMountedRef.current) {
-        return false;
-      }
-
-      if (!result.ok) {
-        toast.error(result.message);
-        return false;
-      }
-
-      applyStoredSchedule(result.schedule);
-      toast.success(
-        `Horário do dia atualizado: ${parsedDayRange.data.startTime} - ${parsedDayRange.data.endTime}.`,
-      );
-      return true;
-    } finally {
-      finishScheduleAction(action);
+    if (!result.ok) {
+      toast.error(result.message);
+      return false;
     }
+
+    toast.success(
+      `Horário do dia atualizado: ${parsedDayRange.data.startTime} - ${parsedDayRange.data.endTime}.`,
+    );
+    return true;
   }
 
   async function toggleEventCompleted(eventId: string) {
@@ -373,40 +408,29 @@ export function useSchedule() {
     const targetEvent = periods
       .flatMap((period) => period.events)
       .find((event) => event.id === eventId);
-    const action = "toggle-event";
 
-    if (!startScheduleAction(action)) {
+    if (!canStartScheduleAction()) {
       return false;
     }
 
-    try {
-      const result = await toggleScheduleEventCompleted(userId, eventId);
+    const result = await toggleEventMutation.mutateAsync({ eventId, userId });
 
-      if (!isMountedRef.current) {
-        return false;
-      }
-
-      if (!result.ok) {
-        toast.error(result.message);
-        return false;
-      }
-
-      applyStoredSchedule(result.schedule);
-
-      if (!targetEvent) {
-        return true;
-      }
-
-      if (targetEvent.completed) {
-        toast.info(`Card "${targetEvent.title}" reaberto.`);
-        return true;
-      }
-
-      toast.success(`Card "${targetEvent.title}" marcado como feito.`);
-      return true;
-    } finally {
-      finishScheduleAction(action);
+    if (!result.ok) {
+      toast.error(result.message);
+      return false;
     }
+
+    if (!targetEvent) {
+      return true;
+    }
+
+    if (targetEvent.completed) {
+      toast.info(`Card "${targetEvent.title}" reaberto.`);
+      return true;
+    }
+
+    toast.success(`Card "${targetEvent.title}" marcado como feito.`);
+    return true;
   }
 
   return {

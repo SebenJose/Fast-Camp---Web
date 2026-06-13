@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 
 import { Toaster } from "@/shared/components/ui/sonner";
 import { MockProvider } from "@/mocks/MockProvider";
+import { QueryProvider } from "@/shared/providers/query-provider";
 import { cn } from "@/shared/lib/utils";
 import "@/shared/styles/globals.css";
 
@@ -55,6 +56,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const shouldUseMocks = process.env.NODE_ENV === "development";
+  const appContent = <QueryProvider>{children}</QueryProvider>;
 
   return (
     <html
@@ -63,7 +65,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body>
-        {shouldUseMocks ? <MockProvider>{children}</MockProvider> : children}
+        {shouldUseMocks ? <MockProvider>{appContent}</MockProvider> : appContent}
         <Toaster position="top-center" richColors />
       </body>
     </html>
