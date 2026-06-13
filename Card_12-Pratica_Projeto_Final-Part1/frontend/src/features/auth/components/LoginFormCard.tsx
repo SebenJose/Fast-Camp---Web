@@ -1,9 +1,10 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { FormEvent } from "react";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import {
@@ -14,14 +15,8 @@ import {
 } from "@/shared/components/auth-form";
 import { cn } from "@/shared/lib/utils";
 
-import {
-  getZodFieldErrors,
-  type LoginFormData,
-  loginSchema,
-} from "../schemas/auth-schemas";
+import { type LoginFormData, loginSchema } from "../schemas/auth-schemas";
 import { useAuthStore } from "../stores/auth-store";
-
-const LOGIN_FIELD_NAMES = ["email", "password"] as const satisfies readonly (keyof LoginFormData)[];
 
 type LoginFormCardProps = {
   onShowRegister: () => void;
@@ -30,34 +25,22 @@ type LoginFormCardProps = {
 export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
   const router = useRouter();
   const login = useAuthStore((store) => store.login);
-  const [fieldErrors, setFieldErrors] = useState<
-    Partial<Record<keyof LoginFormData, string>>
-  >({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setFieldErrors({});
+  async function onSubmit(data: LoginFormData) {
     setFormError(null);
 
-    const formData = new FormData(event.currentTarget);
-    const parsedLogin = loginSchema.safeParse({
-      email: formData.get("email"),
-      password: formData.get("password"),
-    });
-
-    if (!parsedLogin.success) {
-      setFieldErrors(getZodFieldErrors(parsedLogin.error, LOGIN_FIELD_NAMES));
-      return;
-    }
-
-    setIsSubmitting(true);
-    const result = await login(parsedLogin.data).catch(() => ({
+    const result = await login(data).catch(() => ({
       ok: false as const,
       message: "Não foi possível conectar ao serviço de autenticação.",
     }));
-    setIsSubmitting(false);
 
     if (!result.ok) {
       setFormError(result.message);
@@ -97,7 +80,11 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
           </div>
         </div>
 
-        <form className="mt-8 space-y-5" noValidate onSubmit={handleSubmit}>
+        <form
+          className="mt-8 space-y-5"
+          noValidate
+          onSubmit={handleSubmit(onSubmit, () => setFormError(null))}
+        >
           <div className="space-y-3">
             <label
               className="text-sm font-semibold text-secundary-title"
@@ -106,22 +93,22 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
               E-mail
             </label>
             <input
-              aria-describedby={fieldErrors.email ? "email-error" : undefined}
-              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={errors.email ? "email-error" : undefined}
+              aria-invalid={Boolean(errors.email)}
               autoComplete="email"
               className={cn(
                 AUTH_INPUT_CLASS_NAME,
-                fieldErrors.email
+                errors.email
                   ? "border-warning focus:border-warning"
                   : "border-card-opaque focus:border-app-foreground",
               )}
               id="email"
-              name="email"
               type="email"
+              {...register("email")}
             />
-            {fieldErrors.email && (
+            {errors.email && (
               <p className="text-sm font-medium text-warning" id="email-error">
-                {fieldErrors.email}
+                {errors.email.message}
               </p>
             )}
           </div>
@@ -142,22 +129,22 @@ export function LoginFormCard({ onShowRegister }: LoginFormCardProps) {
               </Link>
             </div>
             <input
-              aria-describedby={fieldErrors.password ? "password-error" : undefined}
-              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={errors.password ? "password-error" : undefined}
+              aria-invalid={Boolean(errors.password)}
               autoComplete="current-password"
               className={cn(
                 AUTH_INPUT_CLASS_NAME,
-                fieldErrors.password
+                errors.password
                   ? "border-warning focus:border-warning"
                   : "border-card-opaque focus:border-app-foreground",
               )}
               id="password"
-              name="password"
               type="password"
+              {...register("password")}
             />
-            {fieldErrors.password && (
+            {errors.password && (
               <p className="text-sm font-medium text-warning" id="password-error">
-                {fieldErrors.password}
+                {errors.password.message}
               </p>
             )}
           </div>

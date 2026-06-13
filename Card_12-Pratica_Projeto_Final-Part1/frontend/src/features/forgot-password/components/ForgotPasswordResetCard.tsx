@@ -1,15 +1,22 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { Lock, ArrowLeft } from "lucide-react";
+import { useForm } from "react-hook-form";
+
 import {
-  AUTH_FORM_ERROR_CLASS_NAME,
   AUTH_ICON_INPUT_CLASS_NAME,
   AUTH_INLINE_LINK_CLASS_NAME,
   AUTH_PRIMARY_ACTION_CLASS_NAME,
   AuthFormCard,
 } from "@/shared/components/auth-form";
+import { cn } from "@/shared/lib/utils";
+
+import {
+  type ForgotPasswordResetFormData,
+  forgotPasswordResetSchema,
+} from "../schemas/forgot-password-schemas";
 
 type ForgotPasswordResetCardProps = {
   onSubmit: (password: string) => void;
@@ -18,21 +25,13 @@ type ForgotPasswordResetCardProps = {
 export function ForgotPasswordResetCard({
   onSubmit,
 }: ForgotPasswordResetCardProps) {
-  const [password, setPassword] = useState("");
-  const [passwordConfirmation, setPasswordConfirmation] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-
-    if (password !== passwordConfirmation) {
-      setFormError("As senhas não coincidem.");
-      return;
-    }
-
-    onSubmit(password);
-  };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ForgotPasswordResetFormData>({
+    resolver: zodResolver(forgotPasswordResetSchema),
+  });
 
   return (
     <AuthFormCard
@@ -44,7 +43,11 @@ export function ForgotPasswordResetCard({
         </>
       }
     >
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form
+          className="space-y-5"
+          noValidate
+          onSubmit={handleSubmit(({ password }) => onSubmit(password))}
+        >
           <div className="space-y-3">
             <label
               className="text-sm font-semibold text-secundary-title"
@@ -57,15 +60,27 @@ export function ForgotPasswordResetCard({
                 <Lock className="h-5 w-5" />
               </span>
               <input
-                className={AUTH_ICON_INPUT_CLASS_NAME}
+                aria-describedby={
+                  errors.password ? "new-password-error" : undefined
+                }
+                aria-invalid={Boolean(errors.password)}
+                className={cn(
+                  AUTH_ICON_INPUT_CLASS_NAME,
+                  errors.password && "border-warning focus:border-warning",
+                )}
                 id="new-password"
-                name="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                {...register("password")}
               />
             </div>
+            {errors.password && (
+              <p
+                className="text-sm font-medium text-warning"
+                id="new-password-error"
+              >
+                {errors.password.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -80,20 +95,31 @@ export function ForgotPasswordResetCard({
                 <Lock className="h-5 w-5" />
               </span>
               <input
-                className={AUTH_ICON_INPUT_CLASS_NAME}
+                aria-describedby={
+                  errors.passwordConfirmation
+                    ? "confirm-password-error"
+                    : undefined
+                }
+                aria-invalid={Boolean(errors.passwordConfirmation)}
+                className={cn(
+                  AUTH_ICON_INPUT_CLASS_NAME,
+                  errors.passwordConfirmation &&
+                    "border-warning focus:border-warning",
+                )}
                 id="confirm-password"
-                name="passwordConfirmation"
                 type="password"
-                value={passwordConfirmation}
-                onChange={(e) => setPasswordConfirmation(e.target.value)}
-                required
+                {...register("passwordConfirmation")}
               />
             </div>
+            {errors.passwordConfirmation && (
+              <p
+                className="text-sm font-medium text-warning"
+                id="confirm-password-error"
+              >
+                {errors.passwordConfirmation.message}
+              </p>
+            )}
           </div>
-
-          {formError && (
-            <p className={AUTH_FORM_ERROR_CLASS_NAME}>{formError}</p>
-          )}
 
           <button
             className={AUTH_PRIMARY_ACTION_CLASS_NAME}

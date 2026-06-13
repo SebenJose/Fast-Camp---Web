@@ -1,14 +1,22 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { Mail, ArrowLeft } from "lucide-react";
+import { useForm } from "react-hook-form";
+
 import {
   AUTH_ICON_INPUT_CLASS_NAME,
   AUTH_INLINE_LINK_CLASS_NAME,
   AUTH_PRIMARY_ACTION_CLASS_NAME,
   AuthFormCard,
 } from "@/shared/components/auth-form";
+import { cn } from "@/shared/lib/utils";
+
+import {
+  type ForgotPasswordRequestFormData,
+  forgotPasswordRequestSchema,
+} from "../schemas/forgot-password-schemas";
 
 type ForgotPasswordRequestCardProps = {
   initialEmail: string;
@@ -19,12 +27,16 @@ export function ForgotPasswordRequestCard({
   initialEmail,
   onSubmit,
 }: ForgotPasswordRequestCardProps) {
-  const [email, setEmail] = useState(initialEmail);
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    onSubmit(email);
-  };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ForgotPasswordRequestFormData>({
+    defaultValues: {
+      email: initialEmail,
+    },
+    resolver: zodResolver(forgotPasswordRequestSchema),
+  });
 
   return (
     <AuthFormCard
@@ -36,7 +48,11 @@ export function ForgotPasswordRequestCard({
         </>
       }
     >
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form
+          className="space-y-5"
+          noValidate
+          onSubmit={handleSubmit(({ email }) => onSubmit(email))}
+        >
           <div className="space-y-3">
             <label
               className="text-sm font-semibold text-secundary-title"
@@ -49,16 +65,23 @@ export function ForgotPasswordRequestCard({
                 <Mail className="h-5 w-5" />
               </span>
               <input
-                className={AUTH_ICON_INPUT_CLASS_NAME}
+                aria-describedby={errors.email ? "email-error" : undefined}
+                aria-invalid={Boolean(errors.email)}
+                className={cn(
+                  AUTH_ICON_INPUT_CLASS_NAME,
+                  errors.email && "border-warning focus:border-warning",
+                )}
                 id="email"
-                name="email"
                 type="email"
                 placeholder="exemplo@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                {...register("email")}
               />
             </div>
+            {errors.email && (
+              <p className="text-sm font-medium text-warning" id="email-error">
+                {errors.email.message}
+              </p>
+            )}
           </div>
 
           <button

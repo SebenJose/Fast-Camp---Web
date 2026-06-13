@@ -1,8 +1,9 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import type { FormEvent } from "react";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import {
@@ -13,19 +14,8 @@ import {
 } from "@/shared/components/auth-form";
 import { cn } from "@/shared/lib/utils";
 
-import {
-  getZodFieldErrors,
-  type RegisterFormData,
-  registerSchema,
-} from "../schemas/auth-schemas";
+import { type RegisterFormData, registerSchema } from "../schemas/auth-schemas";
 import { useAuthStore } from "../stores/auth-store";
-
-const REGISTER_FIELD_NAMES = [
-  "name",
-  "email",
-  "password",
-  "passwordConfirmation",
-] as const satisfies readonly (keyof RegisterFormData)[];
 
 type RegisterFormCardProps = {
   onShowLogin: () => void;
@@ -33,39 +23,23 @@ type RegisterFormCardProps = {
 
 export function RegisterFormCard({ onShowLogin }: RegisterFormCardProps) {
   const router = useRouter();
-  const register = useAuthStore((store) => store.register);
-  const [fieldErrors, setFieldErrors] = useState<
-    Partial<Record<keyof RegisterFormData, string>>
-  >({});
+  const registerUser = useAuthStore((store) => store.register);
   const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    register: registerField,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+  });
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setFieldErrors({});
+  async function onSubmit(data: RegisterFormData) {
     setFormError(null);
 
-    const formData = new FormData(event.currentTarget);
-    const parsedRegister = registerSchema.safeParse({
-      name: formData.get("name"),
-      email: formData.get("email"),
-      password: formData.get("password"),
-      passwordConfirmation: formData.get("passwordConfirmation"),
-    });
-
-    if (!parsedRegister.success) {
-      setFieldErrors(
-        getZodFieldErrors(parsedRegister.error, REGISTER_FIELD_NAMES),
-      );
-      return;
-    }
-
-    setIsSubmitting(true);
-    const result = await register(parsedRegister.data).catch(() => ({
+    const result = await registerUser(data).catch(() => ({
       ok: false as const,
       message: "Não foi possível conectar ao serviço de autenticação.",
     }));
-    setIsSubmitting(false);
 
     if (!result.ok) {
       setFormError(result.message);
@@ -105,7 +79,11 @@ export function RegisterFormCard({ onShowLogin }: RegisterFormCardProps) {
           </div>
         </div>
 
-        <form className="mt-8 space-y-5" noValidate onSubmit={handleSubmit}>
+        <form
+          className="mt-8 space-y-5"
+          noValidate
+          onSubmit={handleSubmit(onSubmit, () => setFormError(null))}
+        >
           <div className="space-y-3">
             <label
               className="text-sm font-semibold text-secundary-title"
@@ -114,25 +92,25 @@ export function RegisterFormCard({ onShowLogin }: RegisterFormCardProps) {
               Nome
             </label>
             <input
-              aria-describedby={fieldErrors.name ? "register-name-error" : undefined}
-              aria-invalid={Boolean(fieldErrors.name)}
+              aria-describedby={errors.name ? "register-name-error" : undefined}
+              aria-invalid={Boolean(errors.name)}
               autoComplete="name"
               className={cn(
                 AUTH_INPUT_CLASS_NAME,
-                fieldErrors.name
+                errors.name
                   ? "border-warning focus:border-warning"
                   : "border-card-opaque focus:border-app-foreground",
               )}
               id="register-name"
-              name="name"
               type="text"
+              {...registerField("name")}
             />
-            {fieldErrors.name && (
+            {errors.name && (
               <p
                 className="text-sm font-medium text-warning"
                 id="register-name-error"
               >
-                {fieldErrors.name}
+                {errors.name.message}
               </p>
             )}
           </div>
@@ -145,25 +123,25 @@ export function RegisterFormCard({ onShowLogin }: RegisterFormCardProps) {
               E-mail
             </label>
             <input
-              aria-describedby={fieldErrors.email ? "register-email-error" : undefined}
-              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={errors.email ? "register-email-error" : undefined}
+              aria-invalid={Boolean(errors.email)}
               autoComplete="email"
               className={cn(
                 AUTH_INPUT_CLASS_NAME,
-                fieldErrors.email
+                errors.email
                   ? "border-warning focus:border-warning"
                   : "border-card-opaque focus:border-app-foreground",
               )}
               id="register-email"
-              name="email"
               type="email"
+              {...registerField("email")}
             />
-            {fieldErrors.email && (
+            {errors.email && (
               <p
                 className="text-sm font-medium text-warning"
                 id="register-email-error"
               >
-                {fieldErrors.email}
+                {errors.email.message}
               </p>
             )}
           </div>
@@ -176,25 +154,25 @@ export function RegisterFormCard({ onShowLogin }: RegisterFormCardProps) {
               Senha
             </label>
             <input
-              aria-describedby={fieldErrors.password ? "register-password-error" : undefined}
-              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={errors.password ? "register-password-error" : undefined}
+              aria-invalid={Boolean(errors.password)}
               autoComplete="new-password"
               className={cn(
                 AUTH_INPUT_CLASS_NAME,
-                fieldErrors.password
+                errors.password
                   ? "border-warning focus:border-warning"
                   : "border-card-opaque focus:border-app-foreground",
               )}
               id="register-password"
-              name="password"
               type="password"
+              {...registerField("password")}
             />
-            {fieldErrors.password && (
+            {errors.password && (
               <p
                 className="text-sm font-medium text-warning"
                 id="register-password-error"
               >
-                {fieldErrors.password}
+                {errors.password.message}
               </p>
             )}
           </div>
@@ -208,28 +186,28 @@ export function RegisterFormCard({ onShowLogin }: RegisterFormCardProps) {
             </label>
             <input
               aria-describedby={
-                fieldErrors.passwordConfirmation
+                errors.passwordConfirmation
                   ? "register-password-confirmation-error"
                   : undefined
               }
-              aria-invalid={Boolean(fieldErrors.passwordConfirmation)}
+              aria-invalid={Boolean(errors.passwordConfirmation)}
               autoComplete="new-password"
               className={cn(
                 AUTH_INPUT_CLASS_NAME,
-                fieldErrors.passwordConfirmation
+                errors.passwordConfirmation
                   ? "border-warning focus:border-warning"
                   : "border-card-opaque focus:border-app-foreground",
               )}
               id="register-password-confirmation"
-              name="passwordConfirmation"
               type="password"
+              {...registerField("passwordConfirmation")}
             />
-            {fieldErrors.passwordConfirmation && (
+            {errors.passwordConfirmation && (
               <p
                 className="text-sm font-medium text-warning"
                 id="register-password-confirmation-error"
               >
-                {fieldErrors.passwordConfirmation}
+                {errors.passwordConfirmation.message}
               </p>
             )}
           </div>

@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { KeyRound, ArrowLeft } from "lucide-react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import {
@@ -11,6 +12,12 @@ import {
   AUTH_SECONDARY_ACTION_CLASS_NAME,
   AuthFormCard,
 } from "@/shared/components/auth-form";
+import { cn } from "@/shared/lib/utils";
+
+import {
+  type ForgotPasswordVerifyFormData,
+  forgotPasswordVerifySchema,
+} from "../schemas/forgot-password-schemas";
 
 type ForgotPasswordVerifyCardProps = {
   email: string;
@@ -23,12 +30,13 @@ export function ForgotPasswordVerifyCard({
   onSubmit,
   onBack,
 }: ForgotPasswordVerifyCardProps) {
-  const [code, setCode] = useState("");
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    onSubmit(code);
-  };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ForgotPasswordVerifyFormData>({
+    resolver: zodResolver(forgotPasswordVerifySchema),
+  });
 
   return (
     <AuthFormCard
@@ -43,7 +51,11 @@ export function ForgotPasswordVerifyCard({
         </>
       }
     >
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form
+          className="space-y-5"
+          noValidate
+          onSubmit={handleSubmit(({ code }) => onSubmit(code))}
+        >
           <div className="space-y-3">
             <label
               className="text-sm font-semibold text-secundary-title"
@@ -56,17 +68,25 @@ export function ForgotPasswordVerifyCard({
                 <KeyRound className="h-5 w-5" />
               </span>
               <input
-                className={`${AUTH_ICON_INPUT_CLASS_NAME} tracking-[0.25em] font-mono text-lg`}
+                aria-describedby={errors.code ? "code-error" : undefined}
+                aria-invalid={Boolean(errors.code)}
+                className={cn(
+                  AUTH_ICON_INPUT_CLASS_NAME,
+                  "font-mono text-lg tracking-[0.25em]",
+                  errors.code && "border-warning focus:border-warning",
+                )}
                 id="code"
-                name="code"
                 type="text"
                 placeholder="000000"
                 maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                required
+                {...register("code")}
               />
             </div>
+            {errors.code && (
+              <p className="text-sm font-medium text-warning" id="code-error">
+                {errors.code.message}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-3">
