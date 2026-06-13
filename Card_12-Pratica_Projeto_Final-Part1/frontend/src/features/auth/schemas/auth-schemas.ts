@@ -1,15 +1,12 @@
 import { z } from "zod";
 
-export const loginSchema = z.object({
-  email: z.string().trim().email("Informe um e-mail válido."),
-  password: z.string().min(6, "A senha precisa ter pelo menos 6 caracteres."),
-});
+const passwordSchema = z
+  .string()
+  .min(6, "A senha precisa ter pelo menos 6 caracteres.");
 
-export const registerSchema = z
+export const passwordWithConfirmationSchema = z
   .object({
-    name: z.string().trim().min(2, "Informe seu nome."),
-    email: z.string().trim().email("Informe um e-mail válido."),
-    password: z.string().min(6, "A senha precisa ter pelo menos 6 caracteres."),
+    password: passwordSchema,
     passwordConfirmation: z
       .string()
       .min(6, "Confirme uma senha com pelo menos 6 caracteres."),
@@ -18,6 +15,18 @@ export const registerSchema = z
     message: "As senhas precisam ser iguais.",
     path: ["passwordConfirmation"],
   });
+
+export const loginSchema = z.object({
+  email: z.string().trim().email("Informe um e-mail válido."),
+  password: passwordSchema,
+});
+
+export const registerSchema = z
+  .object({
+    name: z.string().trim().min(2, "Informe seu nome."),
+    email: z.string().trim().email("Informe um e-mail válido."),
+  })
+  .and(passwordWithConfirmationSchema);
 
 export const mockAuthSessionSchema = z.object({
   userId: z.string().min(1),

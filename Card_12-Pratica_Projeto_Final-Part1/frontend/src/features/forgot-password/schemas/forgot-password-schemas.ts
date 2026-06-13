@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { passwordWithConfirmationSchema } from "@/features/auth/schemas/auth-schemas";
+
 export const forgotPasswordRequestSchema = z.object({
   email: z.string().trim().email("Informe um e-mail válido."),
 });
@@ -12,15 +14,7 @@ export const forgotPasswordVerifySchema = z.object({
     .max(6, "Informe no máximo 6 caracteres."),
 });
 
-export const forgotPasswordResetSchema = z
-  .object({
-    password: z.string().min(1, "Informe a nova senha."),
-    passwordConfirmation: z.string().min(1, "Confirme a nova senha."),
-  })
-  .refine((data) => data.password === data.passwordConfirmation, {
-    message: "As senhas não coincidem.",
-    path: ["passwordConfirmation"],
-  });
+export const forgotPasswordResetSchema = passwordWithConfirmationSchema;
 
 export type ForgotPasswordRequestFormData = z.infer<
   typeof forgotPasswordRequestSchema
