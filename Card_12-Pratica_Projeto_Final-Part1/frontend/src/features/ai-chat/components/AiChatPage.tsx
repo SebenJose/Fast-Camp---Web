@@ -10,7 +10,10 @@ import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
 
-type MessageRole = "user" | "assistant";
+const CHAT_MESSAGES_STORAGE_KEY = "organiza-ai:ai-chat-messages";
+const messageRoleSchema = z.enum(["user", "assistant"]);
+
+type MessageRole = z.infer<typeof messageRoleSchema>;
 
 interface Message {
   id: string;
@@ -27,6 +30,17 @@ const SUGGESTED_PROMPTS = [
 ];
 
 const chatMessageSchema = z.string().trim().min(1);
+const storedMessageSchema = z.object({
+  id: z.string().min(1),
+  role: messageRoleSchema,
+  content: z.string().min(1),
+  timestamp: z.string().datetime(),
+});
+const storedMessagesSchema = z.array(storedMessageSchema).min(1);
+
+function isBrowser() {
+  return typeof window !== "undefined";
+}
 
 function getInitialMessages(): Message[] {
   return [
@@ -38,6 +52,67 @@ function getInitialMessages(): Message[] {
       timestamp: new Date(),
     },
   ];
+}
+
+function getStoredMessages() {
+  if (!isBrowser()) {
+    return getInitialMessages();
+  }
+
+  try {
+    const storedMessages = window.localStorage.getItem(
+      CHAT_MESSAGES_STORAGE_KEY,
+    );
+
+    if (!storedMessages) {
+      return getInitialMessages();
+    }
+
+    const parsedMessages = storedMessagesSchema.safeParse(
+      JSON.parse(storedMessages),
+    );
+
+    if (!parsedMessages.success) {
+      return getInitialMessages();
+    }
+
+    return parsedMessages.data.map((message) => ({
+      ...message,
+      timestamp: new Date(message.timestamp),
+    }));
+  } catch {
+    return getInitialMessages();
+  }
+}
+
+function saveStoredMessages(messages: Message[]) {
+  if (!isBrowser()) {
+    return;
+  }
+
+  const storedMessages = storedMessagesSchema.safeParse(
+    messages.map((message) => ({
+      ...message,
+      timestamp: message.timestamp.toISOString(),
+    })),
+  );
+
+  if (!storedMessages.success) {
+    return;
+  }
+
+  window.localStorage.setItem(
+    CHAT_MESSAGES_STORAGE_KEY,
+    JSON.stringify(storedMessages.data),
+  );
+}
+
+function getNextMessageId(messages: Message[]) {
+  const numericMessageIds = messages
+    .map((message) => Number(message.id))
+    .filter((messageId) => Number.isInteger(messageId) && messageId > 0);
+
+  return Math.max(1, ...numericMessageIds) + 1;
 }
 
 function MessageBubble({ message }: { message: Message }) {
@@ -103,16 +178,20 @@ function TypingIndicator() {
 }
 
 export function AiChatPage() {
-  const [messages, setMessages] = useState<Message[]>(getInitialMessages);
+  const [messages, setMessages] = useState<Message[]>(getStoredMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const nextMessageIdRef = useRef(2);
+  const nextMessageIdRef = useRef(getNextMessageId(messages));
   const responseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isResponsePendingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const hasMessages = messages.length > 1;
+
+  useEffect(() => {
+    saveStoredMessages(messages);
+  }, [messages]);
 
   useEffect(() => {
     return () => {
