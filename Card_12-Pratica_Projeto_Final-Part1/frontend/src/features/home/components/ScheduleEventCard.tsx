@@ -5,8 +5,8 @@ import { cn } from "@/shared/lib/utils";
 
 import { SCHEDULE_EVENT_TONE_CLASS_NAMES } from "../constants/schedule";
 import type { ScheduleEvent, SchedulePeriod } from "../types/schedule";
+import { getScheduleEventPosition } from "../utils/schedule-positioning";
 import {
-  getScheduleEventPosition,
   getScheduleEventTimeLabel,
   isScheduleEventMissed,
 } from "../utils/schedule-time";

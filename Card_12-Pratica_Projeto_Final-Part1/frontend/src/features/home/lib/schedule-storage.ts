@@ -12,9 +12,10 @@ import type {
   SchedulePeriod,
 } from "../types/schedule";
 import {
+  getTimeRangeFromTimeValues,
   getVisibleSchedulePeriods,
-  isEventInsideDayRange,
-  isEventStartingInsidePeriod,
+  isTimeRangeInsideDayRange,
+  isTimeRangeStartingInsidePeriod,
   sortScheduleEvents,
 } from "../utils/schedule-time";
 
@@ -157,8 +158,9 @@ export function createUserScheduleEvent(
     currentPeriods,
     currentSchedule.dayRange,
   );
+  const eventRange = getTimeRangeFromTimeValues(eventValues);
 
-  if (!isEventInsideDayRange(eventValues, currentSchedule.dayRange)) {
+  if (!isTimeRangeInsideDayRange(eventRange, currentSchedule.dayRange)) {
     return {
       ok: false as const,
       message: "Esse horario esta fora do intervalo visivel do dia.",
@@ -166,7 +168,7 @@ export function createUserScheduleEvent(
   }
 
   const targetPeriod = visiblePeriods.find((period) =>
-    isEventStartingInsidePeriod(eventValues, period),
+    isTimeRangeStartingInsidePeriod(eventRange, period),
   );
 
   if (!targetPeriod) {
@@ -179,8 +181,8 @@ export function createUserScheduleEvent(
   const newEvent: ScheduleEvent = {
     id: uuidv4(),
     title: eventValues.title.trim(),
-    startTime: eventValues.startTime,
-    endTime: eventValues.endTime,
+    startMinutes: eventRange.startMinutes,
+    endMinutes: eventRange.endMinutes,
     tone: eventValues.tone,
   };
   const targetEvents = currentSchedule.eventsByPeriodId[targetPeriod.id] ?? [];

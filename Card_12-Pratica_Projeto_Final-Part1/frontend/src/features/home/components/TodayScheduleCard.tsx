@@ -28,8 +28,7 @@ type TodayScheduleCardProps = {
   pendingAction: SchedulePendingAction | null;
   onDayRangeChange: (value: ScheduleDayRange) => Promise<boolean>;
   eventFormValues: ScheduleEventFormValues;
-  onEventFormChange: (values: ScheduleEventFormValues) => void;
-  onAddEvent: () => Promise<boolean>;
+  onAddEvent: (values: ScheduleEventFormValues) => Promise<boolean>;
   onDeleteEvent: (eventId: string) => Promise<boolean>;
   onToggleEventCompleted: (eventId: string) => Promise<boolean>;
 };
@@ -44,7 +43,6 @@ export function TodayScheduleCard({
   pendingAction,
   onDayRangeChange,
   eventFormValues,
-  onEventFormChange,
   onAddEvent,
   onDeleteEvent,
   onToggleEventCompleted,
@@ -130,7 +128,7 @@ export function TodayScheduleCard({
 
           {openControlsPanel === "day-range" ? (
             <ScheduleDayRangeForm
-              key={`${dayRange.startTime}-${dayRange.endTime}`}
+              key={`${dayRange.startMinutes}-${dayRange.endMinutes}`}
               value={dayRange}
               onSubmit={onDayRangeChange}
               disabled={isScheduleActionPending}
@@ -141,7 +139,6 @@ export function TodayScheduleCard({
           {openControlsPanel === "event-form" ? (
             <ScheduleEventForm
               values={eventFormValues}
-              onChange={onEventFormChange}
               onSubmit={onAddEvent}
               disabled={isScheduleActionPending}
               isSubmitting={pendingAction === "add-event"}

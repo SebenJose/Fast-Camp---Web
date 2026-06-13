@@ -1,26 +1,28 @@
-import type { CSSProperties } from "react";
-
-import {
-  SCHEDULE_EVENT_MIN_WIDTH_PERCENT,
-  SCHEDULE_TIMELINE_BOTTOM_PADDING,
-  SCHEDULE_TIMELINE_EVENT_TOP,
-  SCHEDULE_TIMELINE_LANE_HEIGHT,
-} from "../constants/schedule";
 import type {
-  PositionedScheduleEvent,
   ScheduleDayRange,
   ScheduleEvent,
   SchedulePeriod,
+  ScheduleRangeLabel,
+  ScheduleTimeRange,
+  ScheduleTimeRangeFormValues,
 } from "../types/schedule";
 
+type ScheduleTimeRangeComparison = "inside" | "overlaps" | "starts-inside";
+
 export function getScheduleEventTimeLabel(event: ScheduleEvent) {
-  return `${event.startTime} - ${event.endTime}`;
+  return `${getTimeFromMinutes(event.startMinutes)} - ${getTimeFromMinutes(
+    event.endMinutes,
+  )}`;
 }
 
 export function getMinutesFromTime(time: string) {
   const [hours = "0", minutes = "0"] = time.split(":");
 
   return Number(hours) * 60 + Number(minutes);
+}
+
+export function getMinutesFromHour(hour: number) {
+  return Math.round(hour * 60);
 }
 
 export function getMinutesFromDate(date: Date) {
@@ -36,18 +38,30 @@ export function getTimeFromMinutes(totalMinutes: number) {
   return `${hours}:${minutes}`;
 }
 
+export function getTimeRangeFromTimeValues(
+  values: ScheduleTimeRangeFormValues,
+): ScheduleTimeRange {
+  return {
+    startMinutes: getMinutesFromTime(values.startTime),
+    endMinutes: getMinutesFromTime(values.endTime),
+  };
+}
+
 export function sortScheduleEvents(events: ScheduleEvent[]) {
   return [...events].sort(
     (currentEvent, nextEvent) =>
-      getMinutesFromTime(currentEvent.startTime) -
-        getMinutesFromTime(nextEvent.startTime) ||
-      getMinutesFromTime(currentEvent.endTime) -
-        getMinutesFromTime(nextEvent.endTime),
+      currentEvent.startMinutes - nextEvent.startMinutes ||
+      currentEvent.endMinutes - nextEvent.endMinutes,
   );
 }
 
-export function getScheduleRangeLabels(startMinutes: number, endMinutes: number) {
-  const labels = [getTimeFromMinutes(startMinutes)];
+export function getScheduleRangeLabels(
+  startMinutes: number,
+  endMinutes: number,
+) {
+  const labels: ScheduleRangeLabel[] = [
+    { label: getTimeFromMinutes(startMinutes), minutes: startMinutes },
+  ];
   const labelStepMinutes = 120;
   const nextStep =
     Math.ceil(startMinutes / labelStepMinutes) * labelStepMinutes;
@@ -58,21 +72,93 @@ export function getScheduleRangeLabels(startMinutes: number, endMinutes: number)
     labelMinutes += labelStepMinutes
   ) {
     if (labelMinutes > startMinutes) {
-      labels.push(getTimeFromMinutes(labelMinutes));
+      labels.push({
+        label: getTimeFromMinutes(labelMinutes),
+        minutes: labelMinutes,
+      });
     }
   }
 
-  labels.push(getTimeFromMinutes(endMinutes));
+  labels.push({ label: getTimeFromMinutes(endMinutes), minutes: endMinutes });
 
-  return Array.from(new Set(labels));
+  return Array.from(
+    new Map(labels.map((rangeLabel) => [rangeLabel.minutes, rangeLabel])).values(),
+  );
+}
+
+function getPeriodTimeRange(
+  period: Pick<SchedulePeriod, "startHour" | "endHour">,
+): ScheduleTimeRange {
+  return {
+    startMinutes: getMinutesFromHour(period.startHour),
+    endMinutes: getMinutesFromHour(period.endHour),
+  };
+}
+
+function isValidTimeRange(range: ScheduleTimeRange) {
+  return range.endMinutes > range.startMinutes;
+}
+
+export function compareScheduleTimeRange(
+  range: ScheduleTimeRange,
+  targetRange: ScheduleTimeRange,
+  comparison: ScheduleTimeRangeComparison,
+) {
+  if (!isValidTimeRange(range) || !isValidTimeRange(targetRange)) {
+    return false;
+  }
+
+  if (comparison === "inside") {
+    return (
+      range.startMinutes >= targetRange.startMinutes &&
+      range.endMinutes <= targetRange.endMinutes
+    );
+  }
+
+  if (comparison === "starts-inside") {
+    return (
+      range.startMinutes >= targetRange.startMinutes &&
+      range.startMinutes < targetRange.endMinutes
+    );
+  }
+
+  return (
+    range.startMinutes < targetRange.endMinutes &&
+    range.endMinutes > targetRange.startMinutes
+  );
+}
+
+export function isTimeRangeInsidePeriod(
+  range: ScheduleTimeRange,
+  period: Pick<SchedulePeriod, "startHour" | "endHour">,
+) {
+  return compareScheduleTimeRange(range, getPeriodTimeRange(period), "inside");
+}
+
+export function isTimeRangeInsideDayRange(
+  range: ScheduleTimeRange,
+  dayRange: ScheduleDayRange,
+) {
+  return compareScheduleTimeRange(range, dayRange, "inside");
+}
+
+export function isTimeRangeStartingInsidePeriod(
+  range: ScheduleTimeRange,
+  period: Pick<SchedulePeriod, "startHour" | "endHour">,
+) {
+  return compareScheduleTimeRange(
+    range,
+    getPeriodTimeRange(period),
+    "starts-inside",
+  );
 }
 
 export function getVisibleSchedulePeriods(
   periods: SchedulePeriod[],
   dayRange: ScheduleDayRange,
 ) {
-  const dayStart = getMinutesFromTime(dayRange.startTime);
-  const dayEnd = getMinutesFromTime(dayRange.endTime);
+  const dayStart = dayRange.startMinutes;
+  const dayEnd = dayRange.endMinutes;
 
   if (dayEnd <= dayStart || periods.length === 0) {
     return [];
@@ -86,21 +172,17 @@ export function getVisibleSchedulePeriods(
   const firstPeriod = sortedPeriods[0];
   const lastPeriod = sortedPeriods[sortedPeriods.length - 1];
 
-  if (dayEnd <= firstPeriod.startHour * 60) {
-    return [
-      getVisibleSchedulePeriod(firstPeriod, dayStart, dayEnd, events),
-    ];
+  if (dayEnd <= getMinutesFromHour(firstPeriod.startHour)) {
+    return [getVisibleSchedulePeriod(firstPeriod, dayStart, dayEnd, events)];
   }
 
-  if (dayStart >= lastPeriod.endHour * 60) {
-    return [
-      getVisibleSchedulePeriod(lastPeriod, dayStart, dayEnd, events),
-    ];
+  if (dayStart >= getMinutesFromHour(lastPeriod.endHour)) {
+    return [getVisibleSchedulePeriod(lastPeriod, dayStart, dayEnd, events)];
   }
 
   return sortedPeriods.flatMap((period, index) => {
-    const periodStart = period.startHour * 60;
-    const periodEnd = period.endHour * 60;
+    const periodStart = getMinutesFromHour(period.startHour);
+    const periodEnd = getMinutesFromHour(period.endHour);
     const isFirstPeriod = index === 0;
     const isLastPeriod = index === sortedPeriods.length - 1;
     const visibleStart = isFirstPeriod
@@ -124,156 +206,20 @@ function getVisibleSchedulePeriod(
   visibleEnd: number,
   events: ScheduleEvent[],
 ) {
+  const visibleRange: ScheduleTimeRange = {
+    startMinutes: visibleStart,
+    endMinutes: visibleEnd,
+  };
+
   return {
     ...period,
     startHour: visibleStart / 60,
     endHour: visibleEnd / 60,
     rangeLabels: getScheduleRangeLabels(visibleStart, visibleEnd),
     events: events.filter((event) =>
-      isEventOverlappingPeriod(event, {
-        startHour: visibleStart / 60,
-        endHour: visibleEnd / 60,
-      }),
+      compareScheduleTimeRange(event, visibleRange, "overlaps"),
     ),
   };
-}
-
-export function getPositionedScheduleEvents(
-  events: ScheduleEvent[],
-  period: Pick<SchedulePeriod, "startHour" | "endHour">,
-): PositionedScheduleEvent[] {
-  const laneEndMinutes: number[] = [];
-
-  return sortScheduleEvents(events).map((event) => {
-    const eventStart = getMinutesFromTime(event.startTime);
-    const eventEnd = getScheduleEventVisualEndMinutes(event, period);
-    const availableLane = laneEndMinutes.findIndex(
-      (laneEnd) => laneEnd <= eventStart,
-    );
-    const lane = availableLane >= 0 ? availableLane : laneEndMinutes.length;
-
-    laneEndMinutes[lane] = eventEnd;
-
-    return {
-      event,
-      lane,
-    };
-  });
-}
-
-export function getScheduleTimelineHeight(laneCount: number) {
-  return (
-    SCHEDULE_TIMELINE_EVENT_TOP +
-    Math.max(laneCount, 1) * SCHEDULE_TIMELINE_LANE_HEIGHT +
-    SCHEDULE_TIMELINE_BOTTOM_PADDING
-  );
-}
-
-export function getScheduleTimePosition(
-  time: string,
-  period: Pick<SchedulePeriod, "startHour" | "endHour">,
-) {
-  const periodStart = period.startHour * 60;
-  const periodEnd = period.endHour * 60;
-  const periodDuration = periodEnd - periodStart;
-  const timeMinutes = getMinutesFromTime(time);
-  const position = ((timeMinutes - periodStart) / periodDuration) * 100;
-
-  return Math.min(Math.max(position, 0), 100);
-}
-
-export function getScheduleEventPosition(
-  event: ScheduleEvent,
-  period: Pick<SchedulePeriod, "startHour" | "endHour">,
-  lane = 0,
-): CSSProperties {
-  const left = getScheduleTimePosition(event.startTime, period);
-  const width = getScheduleEventWidth(event, period);
-
-  return {
-    top: `${SCHEDULE_TIMELINE_EVENT_TOP + lane * SCHEDULE_TIMELINE_LANE_HEIGHT}px`,
-    left: `${left}%`,
-    width: `${width}%`,
-  };
-}
-
-function getScheduleEventWidth(
-  event: ScheduleEvent,
-  period: Pick<SchedulePeriod, "startHour" | "endHour">,
-) {
-  const left = getScheduleTimePosition(event.startTime, period);
-  const right = getScheduleTimePosition(event.endTime, period);
-  const eventWidth = right - left;
-  const remainingWidth = 100 - Math.max(left, 0);
-
-  return Math.min(
-    Math.max(eventWidth, SCHEDULE_EVENT_MIN_WIDTH_PERCENT),
-    remainingWidth,
-  );
-}
-
-function getScheduleEventVisualEndMinutes(
-  event: ScheduleEvent,
-  period: Pick<SchedulePeriod, "startHour" | "endHour">,
-) {
-  const eventStart = getMinutesFromTime(event.startTime);
-  const eventEnd = getMinutesFromTime(event.endTime);
-  const periodDuration = period.endHour * 60 - period.startHour * 60;
-  const visualDuration =
-    (periodDuration * getScheduleEventWidth(event, period)) / 100;
-
-  return Math.max(eventEnd, eventStart + visualDuration);
-}
-
-export function isEventInsidePeriod(
-  event: Pick<ScheduleEvent, "startTime" | "endTime">,
-  period: Pick<SchedulePeriod, "startHour" | "endHour">,
-) {
-  const periodStart = period.startHour * 60;
-  const periodEnd = period.endHour * 60;
-  const eventStart = getMinutesFromTime(event.startTime);
-  const eventEnd = getMinutesFromTime(event.endTime);
-
-  return (
-    eventEnd > eventStart &&
-    eventStart >= periodStart &&
-    eventEnd <= periodEnd
-  );
-}
-
-export function isEventInsideDayRange(
-  event: Pick<ScheduleEvent, "startTime" | "endTime">,
-  dayRange: ScheduleDayRange,
-) {
-  const dayStart = getMinutesFromTime(dayRange.startTime);
-  const dayEnd = getMinutesFromTime(dayRange.endTime);
-  const eventStart = getMinutesFromTime(event.startTime);
-  const eventEnd = getMinutesFromTime(event.endTime);
-
-  return eventEnd > eventStart && eventStart >= dayStart && eventEnd <= dayEnd;
-}
-
-export function isEventStartingInsidePeriod(
-  event: Pick<ScheduleEvent, "startTime">,
-  period: Pick<SchedulePeriod, "startHour" | "endHour">,
-) {
-  const periodStart = period.startHour * 60;
-  const periodEnd = period.endHour * 60;
-  const eventStart = getMinutesFromTime(event.startTime);
-
-  return eventStart >= periodStart && eventStart < periodEnd;
-}
-
-function isEventOverlappingPeriod(
-  event: Pick<ScheduleEvent, "startTime" | "endTime">,
-  period: Pick<SchedulePeriod, "startHour" | "endHour">,
-) {
-  const periodStart = period.startHour * 60;
-  const periodEnd = period.endHour * 60;
-  const eventStart = getMinutesFromTime(event.startTime);
-  const eventEnd = getMinutesFromTime(event.endTime);
-
-  return eventEnd > eventStart && eventStart < periodEnd && eventEnd > periodStart;
 }
 
 export function getNextScheduleEvent(
@@ -283,14 +229,12 @@ export function getNextScheduleEvent(
   const currentMinutes = getMinutesFromDate(currentDate);
 
   return sortScheduleEvents(events).find(
-    (event) =>
-      !event.completed && getMinutesFromTime(event.startTime) >= currentMinutes,
+    (event) => !event.completed && event.startMinutes >= currentMinutes,
   );
 }
 
 export function isScheduleEventMissed(event: ScheduleEvent, currentDate: Date) {
   return (
-    !event.completed &&
-    getMinutesFromTime(event.endTime) < getMinutesFromDate(currentDate)
+    !event.completed && event.endMinutes < getMinutesFromDate(currentDate)
   );
 }

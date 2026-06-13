@@ -6,8 +6,8 @@ import type {
 } from "../types/schedule";
 
 export const INITIAL_SCHEDULE_DAY_RANGE: ScheduleDayRange = {
-  startTime: "06:00",
-  endTime: "22:00",
+  startMinutes: 6 * 60,
+  endMinutes: 22 * 60,
 };
 
 export const INITIAL_SCHEDULE_EVENT_FORM_VALUES: ScheduleEventFormValues = {

@@ -1,9 +1,17 @@
-import type { FormEvent } from "react";
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
 
 import { Button } from "@/shared/components/ui/button";
 
-import type { ScheduleDayRange } from "../types/schedule";
+import { scheduleDayRangeFormValuesSchema } from "../schemas/schedule-schemas";
+import type {
+  ScheduleDayRange,
+  ScheduleDayRangeFormValues,
+} from "../types/schedule";
+import {
+  getTimeFromMinutes,
+  getTimeRangeFromTimeValues,
+} from "../utils/schedule-time";
 
 import { ScheduleFormField } from "./ScheduleFormField";
 import { ScheduleTimeSelect } from "./ScheduleTimeSelect";
@@ -21,24 +29,31 @@ export function ScheduleDayRangeForm({
   disabled = false,
   isSubmitting = false,
 }: ScheduleDayRangeFormProps) {
-  const [draftValue, setDraftValue] = useState(value);
-  const hasChanges =
-    draftValue.startTime !== value.startTime || draftValue.endTime !== value.endTime;
+  const currentValue = getScheduleDayRangeFormValues(value);
+  const {
+    control,
+    formState: { errors, isDirty, isSubmitting: isSubmittingForm },
+    handleSubmit,
+  } = useForm<ScheduleDayRangeFormValues>({
+    resolver: zodResolver(scheduleDayRangeFormValuesSchema),
+    values: currentValue,
+  });
+  const isSubmitPending = isSubmitting || isSubmittingForm;
+  const isFormDisabled = disabled || isSubmitPending;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (disabled || !hasChanges) {
+  async function handleValidSubmit(draftDayRange: ScheduleDayRangeFormValues) {
+    if (disabled || !isDirty) {
       return;
     }
 
-    void onSubmit(draftValue);
+    await onSubmit(getTimeRangeFromTimeValues(draftDayRange));
   }
 
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={handleSubmit(handleValidSubmit)}
       className="grid gap-3 rounded-2xl border border-app-border bg-input-opaque/55 p-4 sm:grid-cols-[1fr_8.5rem_8.5rem_auto] sm:items-end"
+      noValidate
     >
       <div>
         <p className="text-sm font-semibold text-primary-title">
@@ -50,33 +65,54 @@ export function ScheduleDayRangeForm({
       </div>
 
       <ScheduleFormField label="Começa">
-        <ScheduleTimeSelect
-          value={draftValue.startTime}
-          onChange={(startTime) =>
-            setDraftValue((currentValue) => ({ ...currentValue, startTime }))
-          }
-          disabled={disabled}
+        <Controller
+          control={control}
+          name="startTime"
+          render={({ field }) => (
+            <ScheduleTimeSelect
+              value={field.value}
+              onChange={field.onChange}
+              disabled={isFormDisabled}
+              errorMessage={errors.startTime?.message}
+              errorMessageId="schedule-day-start-error"
+            />
+          )}
         />
       </ScheduleFormField>
 
       <ScheduleFormField label="Termina">
-        <ScheduleTimeSelect
-          value={draftValue.endTime}
-          onChange={(endTime) =>
-            setDraftValue((currentValue) => ({ ...currentValue, endTime }))
-          }
-          disabled={disabled}
+        <Controller
+          control={control}
+          name="endTime"
+          render={({ field }) => (
+            <ScheduleTimeSelect
+              value={field.value}
+              onChange={field.onChange}
+              disabled={isFormDisabled}
+              errorMessage={errors.endTime?.message}
+              errorMessageId="schedule-day-end-error"
+            />
+          )}
         />
       </ScheduleFormField>
 
       <Button
         type="submit"
         className="self-end"
-        disabled={disabled || !hasChanges}
-        aria-busy={isSubmitting}
+        disabled={isFormDisabled || !isDirty}
+        aria-busy={isSubmitPending}
       >
-        {isSubmitting ? "Salvando..." : "Aplicar"}
+        {isSubmitPending ? "Salvando..." : "Aplicar"}
       </Button>
     </form>
   );
+}
+
+function getScheduleDayRangeFormValues(
+  value: ScheduleDayRange,
+): ScheduleDayRangeFormValues {
+  return {
+    startTime: getTimeFromMinutes(value.startMinutes),
+    endTime: getTimeFromMinutes(value.endMinutes),
+  };
 }

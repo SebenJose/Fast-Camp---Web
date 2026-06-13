@@ -22,7 +22,6 @@ import {
 } from "../data/today-schedule";
 import {
   scheduleDayRangeSchema,
-  scheduleEventFormValuesSchema,
   type StoredSchedule,
 } from "../schemas/schedule-schemas";
 import type {
@@ -33,11 +32,11 @@ import type {
   SchedulePeriod,
 } from "../types/schedule";
 import {
-  getMinutesFromTime,
+  getTimeRangeFromTimeValues,
   getTimeFromMinutes,
   getVisibleSchedulePeriods,
-  isEventInsideDayRange,
-  isEventStartingInsidePeriod,
+  isTimeRangeInsideDayRange,
+  isTimeRangeStartingInsidePeriod,
 } from "../utils/schedule-time";
 
 const SCHEDULE_EVENT_VALIDATION_TOAST_ID = "schedule-event-validation";
@@ -255,27 +254,15 @@ export function useSchedule() {
     return true;
   }
 
-  async function addEvent() {
+  async function addEvent(eventValues: ScheduleEventFormValues) {
     if (!userId) {
       toast.error("Entre novamente para atualizar sua agenda.");
       return false;
     }
 
-    const parsedEvent = scheduleEventFormValuesSchema.safeParse(eventFormValues);
+    const eventRange = getTimeRangeFromTimeValues(eventValues);
 
-    if (!parsedEvent.success) {
-      showScheduleEventValidationToast(
-        getFirstIssueMessage(
-          parsedEvent.error.issues,
-          "Preencha um título e um horário válido para criar o card.",
-        ),
-      );
-      return false;
-    }
-
-    const eventValues = parsedEvent.data;
-
-    if (!isEventInsideDayRange(eventValues, dayRange)) {
+    if (!isTimeRangeInsideDayRange(eventRange, dayRange)) {
       showScheduleEventValidationToast(
         "Esse horário está fora do intervalo visível do dia.",
       );
@@ -283,7 +270,7 @@ export function useSchedule() {
     }
 
     const targetPeriod = visiblePeriods.find((period) =>
-      isEventStartingInsidePeriod(eventValues, period),
+      isTimeRangeStartingInsidePeriod(eventRange, period),
     );
 
     if (!targetPeriod) {
@@ -307,7 +294,7 @@ export function useSchedule() {
       return false;
     }
 
-    const endMinutes = getMinutesFromTime(eventValues.endTime);
+    const endMinutes = eventRange.endMinutes;
     const nextStartMinutes = endMinutes;
     const nextEndMinutes = Math.min(endMinutes + 30, targetPeriod.endHour * 60);
     const hasNextSlot = nextEndMinutes > nextStartMinutes;
@@ -361,8 +348,8 @@ export function useSchedule() {
     }
 
     if (
-      nextDayRange.startTime === dayRange.startTime &&
-      nextDayRange.endTime === dayRange.endTime
+      nextDayRange.startMinutes === dayRange.startMinutes &&
+      nextDayRange.endMinutes === dayRange.endMinutes
     ) {
       return true;
     }
@@ -394,7 +381,9 @@ export function useSchedule() {
     }
 
     toast.success(
-      `Horário do dia atualizado: ${parsedDayRange.data.startTime} - ${parsedDayRange.data.endTime}.`,
+      `Horário do dia atualizado: ${getTimeFromMinutes(
+        parsedDayRange.data.startMinutes,
+      )} - ${getTimeFromMinutes(parsedDayRange.data.endMinutes)}.`,
     );
     return true;
   }
@@ -440,7 +429,6 @@ export function useSchedule() {
     isLoadingSchedule,
     metrics,
     pendingScheduleAction,
-    setEventFormValues,
     visibleEvents,
     visiblePeriods,
     addEvent,

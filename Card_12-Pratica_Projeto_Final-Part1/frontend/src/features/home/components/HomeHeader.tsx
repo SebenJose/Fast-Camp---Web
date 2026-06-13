@@ -3,7 +3,6 @@ import { useMemo } from "react";
 import type { ScheduleEvent } from "../types/schedule";
 import {
   getMinutesFromDate,
-  getMinutesFromTime,
   getNextScheduleEvent,
 } from "../utils/schedule-time";
 
@@ -27,7 +26,7 @@ function getNextEventLabel(events: ScheduleEvent[], currentDate: Date) {
   }
 
   const minutesUntilEvent =
-    getMinutesFromTime(nextEvent.startTime) - getMinutesFromDate(currentDate);
+    nextEvent.startMinutes - getMinutesFromDate(currentDate);
 
   if (minutesUntilEvent <= 0) {
     return `${nextEvent.title} começa agora`;

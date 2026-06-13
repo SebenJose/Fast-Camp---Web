@@ -28,7 +28,6 @@ export function HomePage() {
           pendingAction={schedule.pendingScheduleAction}
           onDayRangeChange={schedule.updateDayRange}
           eventFormValues={schedule.eventFormValues}
-          onEventFormChange={schedule.setEventFormValues}
           onAddEvent={schedule.addEvent}
           onDeleteEvent={schedule.deleteEvent}
           onToggleEventCompleted={schedule.toggleEventCompleted}

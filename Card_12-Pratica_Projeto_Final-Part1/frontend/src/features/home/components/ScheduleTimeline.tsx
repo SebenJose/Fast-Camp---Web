@@ -3,7 +3,7 @@ import {
   getPositionedScheduleEvents,
   getScheduleTimePosition,
   getScheduleTimelineHeight,
-} from "../utils/schedule-time";
+} from "../utils/schedule-positioning";
 
 import { ScheduleEventCard } from "./ScheduleEventCard";
 
@@ -33,14 +33,16 @@ export function ScheduleTimeline({
         style={{ height: `${timelineHeight}px` }}
       >
         <div className="absolute inset-x-0 top-4">
-          {period.rangeLabels.map((label, index) => (
+          {period.rangeLabels.map((rangeLabel, index) => (
             <span
-              key={label}
+              key={rangeLabel.label}
               className="absolute text-xs font-bold text-app-muted data-[edge=end]:-translate-x-full"
               data-edge={index === period.rangeLabels.length - 1 ? "end" : null}
-              style={{ left: `${getScheduleTimePosition(label, period)}%` }}
+              style={{
+                left: `${getScheduleTimePosition(rangeLabel.minutes, period)}%`,
+              }}
             >
-              {label}
+              {rangeLabel.label}
             </span>
           ))}
         </div>
@@ -48,11 +50,13 @@ export function ScheduleTimeline({
         <div className="absolute inset-x-0 top-8 h-px bg-app-border" />
 
         <div className="absolute inset-x-0 bottom-0 top-8">
-          {period.rangeLabels.map((label) => (
+          {period.rangeLabels.map((rangeLabel) => (
             <span
-              key={label}
+              key={rangeLabel.label}
               className="absolute bottom-0 top-0 border-l border-app-border/70"
-              style={{ left: `${getScheduleTimePosition(label, period)}%` }}
+              style={{
+                left: `${getScheduleTimePosition(rangeLabel.minutes, period)}%`,
+              }}
             />
           ))}
         </div>

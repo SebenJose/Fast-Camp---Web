@@ -2,11 +2,19 @@ import type { LucideIcon } from "lucide-react";
 
 export type ScheduleEventTone = "slate" | "mint" | "sky" | "amber" | "rose";
 
-export type ScheduleEvent = {
-  id: string;
-  title: string;
+export type ScheduleTimeRange = {
+  startMinutes: number;
+  endMinutes: number;
+};
+
+export type ScheduleTimeRangeFormValues = {
   startTime: string;
   endTime: string;
+};
+
+export type ScheduleEvent = ScheduleTimeRange & {
+  id: string;
+  title: string;
   tone?: ScheduleEventTone;
   completed?: boolean;
 };
@@ -16,10 +24,8 @@ export type PositionedScheduleEvent = {
   lane: number;
 };
 
-export type ScheduleEventFormValues = Pick<
-  ScheduleEvent,
-  "title" | "startTime" | "endTime" | "tone"
-> & {
+export type ScheduleEventFormValues = ScheduleTimeRangeFormValues & {
+  title: string;
   tone: ScheduleEventTone;
 };
 
@@ -28,9 +34,13 @@ export type ScheduleEventToneOption = {
   value: ScheduleEventTone;
 };
 
-export type ScheduleDayRange = {
-  startTime: string;
-  endTime: string;
+export type ScheduleDayRange = ScheduleTimeRange;
+
+export type ScheduleDayRangeFormValues = ScheduleTimeRangeFormValues;
+
+export type ScheduleRangeLabel = {
+  label: string;
+  minutes: number;
 };
 
 export type SchedulePeriod = {
@@ -39,7 +49,7 @@ export type SchedulePeriod = {
   icon: LucideIcon;
   startHour: number;
   endHour: number;
-  rangeLabels: string[];
+  rangeLabels: ScheduleRangeLabel[];
   events: ScheduleEvent[];
 };
 

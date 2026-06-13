@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import type { ScheduleMetric, SchedulePeriod } from "../types/schedule";
+import { getScheduleRangeLabels } from "../utils/schedule-time";
 
 const completedBlocks = 0;
 const totalBlocks = 0;
@@ -18,7 +19,7 @@ export const TODAY_SCHEDULE_PERIODS: SchedulePeriod[] = [
     icon: Sun,
     startHour: 6,
     endHour: 12,
-    rangeLabels: ["06:00", "08:00", "10:00", "12:00"],
+    rangeLabels: getScheduleRangeLabels(6 * 60, 12 * 60),
     events: [],
   },
   {
@@ -27,7 +28,7 @@ export const TODAY_SCHEDULE_PERIODS: SchedulePeriod[] = [
     icon: Utensils,
     startHour: 12,
     endHour: 13,
-    rangeLabels: ["12:00", "13:00"],
+    rangeLabels: getScheduleRangeLabels(12 * 60, 13 * 60),
     events: [],
   },
   {
@@ -36,7 +37,7 @@ export const TODAY_SCHEDULE_PERIODS: SchedulePeriod[] = [
     icon: Coffee,
     startHour: 13,
     endHour: 18,
-    rangeLabels: ["13:00", "15:00", "17:00", "18:00"],
+    rangeLabels: getScheduleRangeLabels(13 * 60, 18 * 60),
     events: [],
   },
   {
@@ -45,7 +46,7 @@ export const TODAY_SCHEDULE_PERIODS: SchedulePeriod[] = [
     icon: Moon,
     startHour: 18,
     endHour: 22,
-    rangeLabels: ["18:00", "20:00", "22:00"],
+    rangeLabels: getScheduleRangeLabels(18 * 60, 22 * 60),
     events: [],
   },
 ];

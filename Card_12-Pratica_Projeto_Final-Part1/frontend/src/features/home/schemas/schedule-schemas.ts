@@ -1,16 +1,13 @@
 import { z } from "zod";
 
+import { getMinutesFromTime } from "../utils/schedule-time";
+
 const scheduleTimePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-function getTimeMinutes(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-
-  return hours * 60 + minutes;
-}
 
 export const scheduleTimeSchema = z
   .string()
   .regex(scheduleTimePattern, "Informe um horario no formato HH:mm.");
+export const scheduleMinutesSchema = z.number().int().min(0).max(23 * 60 + 59);
 
 export const scheduleEventToneSchema = z.enum([
   "slate",
@@ -20,14 +17,55 @@ export const scheduleEventToneSchema = z.enum([
   "rose",
 ]);
 
-export const scheduleDayRangeSchema = z
+export const scheduleTimeRangeSchema = z
+  .object({
+    startMinutes: scheduleMinutesSchema,
+    endMinutes: scheduleMinutesSchema,
+  })
+  .refine((timeRange) => timeRange.endMinutes > timeRange.startMinutes, {
+    message: "O fim precisa ser depois do começo.",
+    path: ["endMinutes"],
+  });
+
+export const scheduleTimeRangeFormValuesSchema = z
   .object({
     startTime: scheduleTimeSchema,
     endTime: scheduleTimeSchema,
   })
   .refine(
+    (timeRange) =>
+      getMinutesFromTime(timeRange.endTime) >
+      getMinutesFromTime(timeRange.startTime),
+    {
+      message: "O fim precisa ser depois do começo.",
+      path: ["endTime"],
+    },
+  );
+
+const scheduleTimeRangeFromFormValuesSchema =
+  scheduleTimeRangeFormValuesSchema.transform((timeRange) => ({
+    startMinutes: getMinutesFromTime(timeRange.startTime),
+    endMinutes: getMinutesFromTime(timeRange.endTime),
+  }));
+
+const storedScheduleTimeRangeSchema = z
+  .union([scheduleTimeRangeSchema, scheduleTimeRangeFromFormValuesSchema])
+  .pipe(scheduleTimeRangeSchema);
+
+const scheduleEventBaseSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().trim().min(1, "Informe um título para criar o card."),
+  tone: scheduleEventToneSchema.optional(),
+  completed: z.boolean().optional(),
+});
+
+export const scheduleDayRangeSchema = storedScheduleTimeRangeSchema;
+
+export const scheduleDayRangeFormValuesSchema =
+  scheduleTimeRangeFormValuesSchema.refine(
     (dayRange) =>
-      getTimeMinutes(dayRange.endTime) > getTimeMinutes(dayRange.startTime),
+      getMinutesFromTime(dayRange.endTime) >
+      getMinutesFromTime(dayRange.startTime),
     {
       message: "O fim do dia precisa ser depois do começo.",
       path: ["endTime"],
@@ -35,21 +73,23 @@ export const scheduleDayRangeSchema = z
   );
 
 export const scheduleEventSchema = z
-  .object({
-    id: z.string().min(1),
-    title: z.string().trim().min(1, "Informe um título para criar o card."),
-    startTime: scheduleTimeSchema,
-    endTime: scheduleTimeSchema,
-    tone: scheduleEventToneSchema.optional(),
-    completed: z.boolean().optional(),
-  })
-  .refine(
-    (event) => getTimeMinutes(event.endTime) > getTimeMinutes(event.startTime),
-    {
-      message: "O fim do card precisa ser depois do inicio.",
-      path: ["endTime"],
-    },
-  );
+  .union([
+    scheduleEventBaseSchema.merge(scheduleTimeRangeSchema),
+    scheduleEventBaseSchema
+      .extend({
+        startTime: scheduleTimeSchema,
+        endTime: scheduleTimeSchema,
+      })
+      .transform((event) => ({
+        id: event.id,
+        title: event.title,
+        tone: event.tone,
+        completed: event.completed,
+        startMinutes: getMinutesFromTime(event.startTime),
+        endMinutes: getMinutesFromTime(event.endTime),
+      })),
+  ])
+  .pipe(scheduleEventBaseSchema.merge(scheduleTimeRangeSchema));
 
 export const scheduleEventFormValuesSchema = z
   .object({
@@ -59,7 +99,8 @@ export const scheduleEventFormValuesSchema = z
     tone: scheduleEventToneSchema,
   })
   .refine(
-    (event) => getTimeMinutes(event.endTime) > getTimeMinutes(event.startTime),
+    (event) =>
+      getMinutesFromTime(event.endTime) > getMinutesFromTime(event.startTime),
     {
       message: "O fim do card precisa ser depois do inicio.",
       path: ["endTime"],
