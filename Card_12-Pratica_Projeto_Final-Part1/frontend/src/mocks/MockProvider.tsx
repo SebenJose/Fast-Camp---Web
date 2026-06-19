@@ -32,6 +32,12 @@ export function MockProvider({ children }: MockProviderProps) {
           },
         }),
       )
+      .catch((error: unknown) => {
+        console.error(
+          "Falha ao iniciar o MSW. As requisições vão para a rede real.",
+          error,
+        );
+      })
       .finally(() => {
         setIsReady(true);
       });
