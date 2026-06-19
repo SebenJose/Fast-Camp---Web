@@ -4,11 +4,12 @@ import { BotMessageSquare, Send, Sparkles, StopCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
+import { useAuthStore } from "@/features/auth";
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { Textarea } from "@/shared/components/ui/textarea";
-import { cn } from "@/shared/lib/utils";
+import { cn, getProfileInitials } from "@/shared/lib/utils";
 
 const CHAT_MESSAGES_STORAGE_KEY = "organiza-ai:ai-chat-messages";
 const messageRoleSchema = z.enum(["user", "assistant"]);
@@ -115,7 +116,13 @@ function getNextMessageId(messages: Message[]) {
   return Math.max(1, ...numericMessageIds) + 1;
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({
+  message,
+  userInitials,
+}: {
+  message: Message;
+  userInitials: string;
+}) {
   const isUser = message.role === "user";
 
   return (
@@ -132,7 +139,7 @@ function MessageBubble({ message }: { message: Message }) {
       ) : (
         <Avatar className="h-8 w-8 shrink-0">
           <AvatarFallback className="text-xs bg-card-opaque text-primary-title">
-            US
+            {userInitials}
           </AvatarFallback>
         </Avatar>
       )}
@@ -178,34 +185,62 @@ function TypingIndicator() {
 }
 
 export function AiChatPage() {
-  const [messages, setMessages] = useState<Message[]>(getStoredMessages);
+  const session = useAuthStore((store) => store.session);
+  const [messages, setMessages] = useState<Message[]>(getInitialMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const nextMessageIdRef = useRef(getNextMessageId(messages));
-  const responseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isResponsePendingRef = useRef(false);
+  const hasHydratedRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const hasMessages = messages.length > 1;
+  const userInitials = getProfileInitials(
+    session?.name ?? "Visitante",
+    session?.email ?? "sem sessão ativa",
+  );
 
   useEffect(() => {
+    if (!hasHydratedRef.current) {
+      hasHydratedRef.current = true;
+
+      const storedMessages = getStoredMessages();
+      nextMessageIdRef.current = getNextMessageId(storedMessages);
+      setMessages(storedMessages);
+
+      return;
+    }
+
     saveStoredMessages(messages);
   }, [messages]);
 
   useEffect(() => {
-    return () => {
-      if (responseTimeoutRef.current) {
-        clearTimeout(responseTimeoutRef.current);
-      }
-
-      isResponsePendingRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    if (!isTyping) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      const aiMessage: Message = {
+        id: createMessageId(),
+        role: "assistant",
+        content:
+          "Entendido! Estou processando sua solicitação. Em breve a integração com a IA estará disponível.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+      setIsTyping(false);
+      isResponsePendingRef.current = false;
+    }, 1500);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [isTyping]);
 
   function createMessageId() {
     const nextId = nextMessageIdRef.current;
@@ -213,17 +248,8 @@ export function AiChatPage() {
     return nextId.toString();
   }
 
-  function clearPendingResponse() {
-    if (responseTimeoutRef.current) {
-      clearTimeout(responseTimeoutRef.current);
-      responseTimeoutRef.current = null;
-    }
-
-    isResponsePendingRef.current = false;
-  }
-
   function handleStopResponse() {
-    clearPendingResponse();
+    isResponsePendingRef.current = false;
     setIsTyping(false);
     textareaRef.current?.focus();
   }
@@ -248,20 +274,6 @@ export function AiChatPage() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsTyping(true);
-
-    responseTimeoutRef.current = setTimeout(() => {
-      const aiMessage: Message = {
-        id: createMessageId(),
-        role: "assistant",
-        content:
-          "Entendido! Estou processando sua solicitação. Em breve a integração com a IA estará disponível.",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-      setIsTyping(false);
-      isResponsePendingRef.current = false;
-      responseTimeoutRef.current = null;
-    }, 1500);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -293,7 +305,11 @@ export function AiChatPage() {
       <ScrollArea className="flex-1">
         <div className="flex flex-col py-4">
           {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble
+              key={message.id}
+              message={message}
+              userInitials={userInitials}
+            />
           ))}
           {isTyping && <TypingIndicator />}
           <div ref={messagesEndRef} />
