@@ -16,6 +16,13 @@ export type AuthActionResult =
       message: string;
     };
 
+export type AuthLogoutResult =
+  | { ok: true }
+  | {
+      ok: false;
+      message: string;
+    };
+
 const AUTH_API_BASE_URL = "/api/auth";
 
 async function readAuthApiResponse(response: Response): Promise<AuthApiResponse> {
@@ -109,7 +116,9 @@ export async function registerWithCredentials(
 }
 
 export async function logoutAuthSession() {
-  await fetch(`${AUTH_API_BASE_URL}/logout`, {
+  const response = await fetch(`${AUTH_API_BASE_URL}/logout`, {
     method: "POST",
   }).catch(() => null);
+
+  return Boolean(response?.ok);
 }

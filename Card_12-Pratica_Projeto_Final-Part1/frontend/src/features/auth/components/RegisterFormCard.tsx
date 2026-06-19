@@ -82,7 +82,7 @@ export function RegisterFormCard({ onShowLogin }: RegisterFormCardProps) {
         <form
           className="mt-8 space-y-5"
           noValidate
-          onSubmit={handleSubmit(onSubmit, () => setFormError(null))}
+          onSubmit={handleSubmit(onSubmit)}
         >
           <div className="space-y-3">
             <label

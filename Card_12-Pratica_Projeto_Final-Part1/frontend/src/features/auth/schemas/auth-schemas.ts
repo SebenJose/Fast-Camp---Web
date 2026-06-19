@@ -7,9 +7,7 @@ const passwordSchema = z
 export const passwordWithConfirmationSchema = z
   .object({
     password: passwordSchema,
-    passwordConfirmation: z
-      .string()
-      .min(6, "Confirme uma senha com pelo menos 6 caracteres."),
+    passwordConfirmation: z.string().min(1, "Confirme sua senha."),
   })
   .refine((data) => data.password === data.passwordConfirmation, {
     message: "As senhas precisam ser iguais.",

@@ -5,6 +5,8 @@ import { useEffect } from "react";
 
 import { useAuthStore } from "../stores/auth-store";
 
+import { AuthPageSkeleton } from "./AuthPageSkeleton";
+
 type AuthGuestGuardProps = {
   children: React.ReactNode;
 };
@@ -26,7 +28,7 @@ export function AuthGuestGuard({ children }: AuthGuestGuardProps) {
   }, [isCheckingSession, router, session]);
 
   if (isCheckingSession || session) {
-    return null;
+    return <AuthPageSkeleton />;
   }
 
   return children;

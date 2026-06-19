@@ -6,6 +6,7 @@ import {
   logoutAuthSession,
   registerWithCredentials,
   type AuthActionResult,
+  type AuthLogoutResult,
 } from "../api/auth-api";
 import type { LoginFormData, RegisterFormData } from "../schemas/auth-schemas";
 import type { MockAuthSession } from "../types/auth";
@@ -16,7 +17,7 @@ type AuthStore = {
   hydrateSession: () => Promise<void>;
   login: (data: LoginFormData) => Promise<AuthActionResult>;
   register: (data: RegisterFormData) => Promise<AuthActionResult>;
-  logout: () => Promise<void>;
+  logout: () => Promise<AuthLogoutResult>;
 };
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -46,7 +47,17 @@ export const useAuthStore = create<AuthStore>((set) => ({
     return result;
   },
   logout: async () => {
-    await logoutAuthSession();
+    const didLogout = await logoutAuthSession();
+
+    if (!didLogout) {
+      return {
+        ok: false,
+        message: "Não foi possível encerrar sua sessão. Tente novamente.",
+      };
+    }
+
     set({ session: null });
+
+    return { ok: true };
   },
 }));
