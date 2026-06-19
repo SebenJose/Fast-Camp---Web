@@ -29,6 +29,8 @@ function getUniqueScheduleEvents(events: ScheduleEvent[]) {
   return Array.from(new Map(events.map((event) => [event.id, event])).values());
 }
 
+const SCHEDULE_LOAD_ERROR_TOAST_ID = "schedule-load-error";
+
 export function useScheduleHydration() {
   const session = useAuthStore((store) => store.session);
   const userId = session?.userId;
@@ -45,7 +47,9 @@ export function useScheduleHydration() {
 
   useEffect(() => {
     if (scheduleQuery.isError) {
-      toast.error("Nao foi possivel carregar sua agenda.");
+      toast.error("Nao foi possivel carregar sua agenda.", {
+        id: SCHEDULE_LOAD_ERROR_TOAST_ID,
+      });
     }
   }, [scheduleQuery.isError]);
 
@@ -67,7 +71,7 @@ export function useScheduleHydration() {
       getUniqueScheduleEvents(visiblePeriods.flatMap((period) => period.events)),
     [visiblePeriods],
   );
-  const isLoadingSchedule = !userId || scheduleQuery.isPending;
+  const isLoadingSchedule = Boolean(userId) && scheduleQuery.isPending;
 
   return {
     currentDate,

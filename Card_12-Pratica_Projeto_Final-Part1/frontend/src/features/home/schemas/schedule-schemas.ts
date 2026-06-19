@@ -27,20 +27,26 @@ export const scheduleTimeRangeSchema = z
     path: ["endMinutes"],
   });
 
-export const scheduleTimeRangeFormValuesSchema = z
-  .object({
-    startTime: scheduleTimeSchema,
-    endTime: scheduleTimeSchema,
-  })
-  .refine(
-    (timeRange) =>
-      getMinutesFromTime(timeRange.endTime) >
-      getMinutesFromTime(timeRange.startTime),
-    {
-      message: "O fim precisa ser depois do começo.",
-      path: ["endTime"],
-    },
+function isEndTimeAfterStartTime(timeRange: {
+  startTime: string;
+  endTime: string;
+}) {
+  return (
+    getMinutesFromTime(timeRange.endTime) >
+    getMinutesFromTime(timeRange.startTime)
   );
+}
+
+const timeRangeFormValuesObjectSchema = z.object({
+  startTime: scheduleTimeSchema,
+  endTime: scheduleTimeSchema,
+});
+
+export const scheduleTimeRangeFormValuesSchema =
+  timeRangeFormValuesObjectSchema.refine(isEndTimeAfterStartTime, {
+    message: "O fim precisa ser depois do começo.",
+    path: ["endTime"],
+  });
 
 const scheduleTimeRangeFromFormValuesSchema =
   scheduleTimeRangeFormValuesSchema.transform((timeRange) => ({
@@ -62,15 +68,10 @@ const scheduleEventBaseSchema = z.object({
 export const scheduleDayRangeSchema = storedScheduleTimeRangeSchema;
 
 export const scheduleDayRangeFormValuesSchema =
-  scheduleTimeRangeFormValuesSchema.refine(
-    (dayRange) =>
-      getMinutesFromTime(dayRange.endTime) >
-      getMinutesFromTime(dayRange.startTime),
-    {
-      message: "O fim do dia precisa ser depois do começo.",
-      path: ["endTime"],
-    },
-  );
+  timeRangeFormValuesObjectSchema.refine(isEndTimeAfterStartTime, {
+    message: "O fim do dia precisa ser depois do começo.",
+    path: ["endTime"],
+  });
 
 export const scheduleEventSchema = z
   .union([
@@ -98,14 +99,10 @@ export const scheduleEventFormValuesSchema = z
     endTime: scheduleTimeSchema,
     tone: scheduleEventToneSchema,
   })
-  .refine(
-    (event) =>
-      getMinutesFromTime(event.endTime) > getMinutesFromTime(event.startTime),
-    {
-      message: "O fim do card precisa ser depois do inicio.",
-      path: ["endTime"],
-    },
-  );
+  .refine(isEndTimeAfterStartTime, {
+    message: "O fim do card precisa ser depois do inicio.",
+    path: ["endTime"],
+  });
 
 export const storedScheduleSchema = z.object({
   dayRange: scheduleDayRangeSchema,

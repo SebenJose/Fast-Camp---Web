@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
@@ -50,10 +50,13 @@ export function TodayScheduleCard({
   const [openEventId, setOpenEventId] = useState<string | null>(null);
   const [openControlsPanel, setOpenControlsPanel] =
     useState<ScheduleControlsPanel | null>(null);
-  const selectedEvent =
-    periods
-      .flatMap((period) => period.events)
-      .find((event) => event.id === openEventId) ?? null;
+  const selectedEvent = useMemo(
+    () =>
+      periods
+        .flatMap((period) => period.events)
+        .find((event) => event.id === openEventId) ?? null,
+    [periods, openEventId],
+  );
   const isScheduleActionPending = pendingAction !== null;
 
   function handleOpenEvent(eventId: string) {
