@@ -26,7 +26,7 @@ import {
 } from "@/shared/components/ui/alert-dialog";
 import { useAuthStore } from "@/features/auth";
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
-import { cn } from "@/shared/lib/utils";
+import { cn, getProfileInitials } from "@/shared/lib/utils";
 
 interface NavItem {
   id: string;
@@ -41,17 +41,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: "ai-chat",   label: "Chat com IA", href: "/ai-chat",   icon: BotMessageSquare },
 ];
 
-function getProfileInitials(name: string, email: string) {
-  const initials = name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("");
-
-  return (initials || email[0] || "U").toUpperCase();
-}
-
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -60,7 +49,13 @@ export function AppSidebar() {
   const logout = useAuthStore((store) => store.logout);
 
   async function handleLogout() {
-    await logout();
+    const result = await logout();
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
     toast.info("Sessão encerrada.");
     router.push("/auth");
   }
@@ -72,10 +67,11 @@ export function AppSidebar() {
   return (
     <aside
       aria-label="Navegação principal"
+      data-expanded={isExpanded}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
       className={cn(
-        "fixed inset-y-0 left-0 z-40 flex flex-col",
+        "peer fixed inset-y-0 left-0 z-40 flex flex-col",
         "bg-opaque-black border-r border-app-border",
         "transition-[width] duration-300 ease-in-out",
         isExpanded ? "w-56" : "w-16",
