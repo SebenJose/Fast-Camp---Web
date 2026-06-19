@@ -9,8 +9,7 @@ export function DashboardHeader() {
           Visão geral
         </h1>
         <p className="mt-3 max-w-2xl text-sm font-medium leading-6 text-secundary-title sm:text-base">
-          Dados mockados para acompanhar consumo de IA, tarefas cumpridas e
-          interações semanais.
+          Acompanhe consumo de IA, tarefas cumpridas e interações semanais.
         </p>
       </div>
     </header>
