@@ -10,8 +10,8 @@ export const forgotPasswordVerifySchema = z.object({
   code: z
     .string()
     .trim()
-    .min(1, "Informe o código de verificação.")
-    .max(6, "Informe no máximo 6 caracteres."),
+    .length(6, "Informe os 6 dígitos do código de verificação.")
+    .regex(/^\d+$/, "O código deve conter apenas números."),
 });
 
 export const forgotPasswordResetSchema = passwordWithConfirmationSchema;

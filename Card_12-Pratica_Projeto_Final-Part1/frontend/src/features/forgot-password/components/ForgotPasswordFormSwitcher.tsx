@@ -15,17 +15,23 @@ function assertNever(value: never): never {
 export function ForgotPasswordFormSwitcher() {
   const [step, setStep] = useState<Step>("request");
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
 
   const handleRequestCode = (submittedEmail: string) => {
     setEmail(submittedEmail);
     setStep("verify");
   };
 
-  const handleVerifyCode = () => {
+  const handleVerifyCode = (submittedCode: string) => {
+    setCode(submittedCode);
     setStep("reset");
   };
 
-  const handleResetPassword = () => {
+  const handleResetPassword = (submittedPassword: string) => {
+    if (!code || !submittedPassword) {
+      return;
+    }
+
     setStep("success");
   };
 
