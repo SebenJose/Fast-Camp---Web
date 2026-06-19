@@ -238,6 +238,8 @@ flowchart TD
 
 ## Como Executar Localmente
 
+Pré-requisito: Node.js 20.9 ou superior (exigido pelo Next.js 16). Se você usa [nvm](https://github.com/nvm-sh/nvm), rode `nvm use` na pasta `frontend` para selecionar a versão correta automaticamente (lida do arquivo `.nvmrc`). Com uma versão de Node mais antiga, `npm install` falha imediatamente com um erro `EBADENGINE`.
+
 Instale as dependências:
 
 ```bash
