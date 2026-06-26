@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { SCHEDULE_EVENT_TITLE_MAX_LENGTH } from "../constants/schedule";
 import { getMinutesFromTime } from "../utils/schedule-time";
 
 const scheduleTimePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -94,7 +95,14 @@ export const scheduleEventSchema = z
 
 export const scheduleEventFormValuesSchema = z
   .object({
-    title: z.string().trim().min(1, "Informe um título para criar o card."),
+    title: z
+      .string()
+      .trim()
+      .min(1, "Informe um título para criar o card.")
+      .max(
+        SCHEDULE_EVENT_TITLE_MAX_LENGTH,
+        `O título pode ter no máximo ${SCHEDULE_EVENT_TITLE_MAX_LENGTH} caracteres.`,
+      ),
     startTime: scheduleTimeSchema,
     endTime: scheduleTimeSchema,
     tone: scheduleEventToneSchema,

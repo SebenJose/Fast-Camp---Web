@@ -13,6 +13,7 @@ import {
 
 import {
   SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME,
+  SCHEDULE_EVENT_TITLE_MAX_LENGTH,
   SCHEDULE_EVENT_TONE_OPTIONS,
 } from "../constants/schedule";
 import { scheduleEventFormValuesSchema } from "../schemas/schedule-schemas";
@@ -44,12 +45,14 @@ export function ScheduleEventForm({
     formState: { errors, isSubmitting: isSubmittingForm },
     handleSubmit,
     register,
+    watch,
   } = useForm<ScheduleEventFormValues>({
     resolver: zodResolver(scheduleEventFormValuesSchema),
     values,
   });
   const isSubmitPending = isSubmitting || isSubmittingForm;
   const isFormDisabled = disabled || isSubmitPending;
+  const titleLength = watch("title").length;
 
   async function handleValidSubmit(formValues: ScheduleEventFormValues) {
     if (disabled) {
@@ -72,16 +75,30 @@ export function ScheduleEventForm({
           className={SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME}
           placeholder="Novo bloco"
           disabled={isFormDisabled}
+          maxLength={SCHEDULE_EVENT_TITLE_MAX_LENGTH}
           {...register("title")}
         />
-        {errors.title && (
+        <div className="flex items-center justify-between gap-2">
+          {errors.title ? (
+            <p
+              className="text-xs font-medium normal-case text-warning"
+              id="schedule-title-error"
+            >
+              {errors.title.message}
+            </p>
+          ) : (
+            <span />
+          )}
           <p
-            className="text-xs font-medium normal-case text-warning"
-            id="schedule-title-error"
+            className={`ml-auto text-xs font-medium normal-case tabular-nums ${
+              titleLength >= SCHEDULE_EVENT_TITLE_MAX_LENGTH
+                ? "text-warning"
+                : "text-app-muted"
+            }`}
           >
-            {errors.title.message}
+            {titleLength}/{SCHEDULE_EVENT_TITLE_MAX_LENGTH}
           </p>
-        )}
+        </div>
       </ScheduleFormField>
 
       <ScheduleFormField label="Início">

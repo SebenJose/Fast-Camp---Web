@@ -41,6 +41,8 @@ export const SCHEDULE_EVENT_TONE_CLASS_NAMES: Record<
 export const SCHEDULE_EVENT_FORM_FIELD_CLASS_NAME =
   "h-10 rounded-xl border border-app-border bg-input-opaque px-3 text-sm font-medium text-primary-title outline-none transition focus:border-secundary-title/60 focus:ring-2 focus:ring-secundary-title/20";
 
+export const SCHEDULE_EVENT_TITLE_MAX_LENGTH = 100;
+
 export const SCHEDULE_TIMELINE_EVENT_TOP = 40;
 export const SCHEDULE_TIMELINE_LANE_HEIGHT = 62;
 export const SCHEDULE_TIMELINE_BOTTOM_PADDING = 18;
