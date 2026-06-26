@@ -41,12 +41,12 @@ export function ScheduleEventDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="border border-app-border bg-opaque-black text-primary-title shadow-2xl shadow-black/40 sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-primary-title">
+        <DialogHeader className="min-w-0">
+          <DialogTitle className="wrap-break-word text-xl font-semibold text-primary-title">
             {event.title}
           </DialogTitle>
-          <DialogDescription className="font-medium text-secundary-title">
-            {timeLabel}
+          <DialogDescription className="sr-only">
+            Card agendado para {timeLabel}
           </DialogDescription>
         </DialogHeader>
 
