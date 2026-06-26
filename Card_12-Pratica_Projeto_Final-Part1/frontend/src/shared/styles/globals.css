@@ -149,11 +149,13 @@
 
 html {
   min-height: 100%;
+  overscroll-behavior-y: none;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
+  overscroll-behavior-y: none;
 }
 
 input:-webkit-autofill,
