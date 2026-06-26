@@ -1,6 +1,6 @@
 "use client";
 
-import { BotMessageSquare, Send, Sparkles, StopCircle } from "lucide-react";
+import { BotMessageSquare, ChevronDown, ChevronUp, Send, Sparkles, StopCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
@@ -12,6 +12,8 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import { cn, getProfileInitials } from "@/shared/lib/utils";
 
 const CHAT_MESSAGES_STORAGE_KEY = "organiza-ai:ai-chat-messages";
+const CHAT_MESSAGE_MAX_LENGTH = 2000;
+const MESSAGE_PREVIEW_LENGTH = 300;
 const messageRoleSchema = z.enum(["user", "assistant"]);
 
 type MessageRole = z.infer<typeof messageRoleSchema>;
@@ -30,7 +32,11 @@ const SUGGESTED_PROMPTS = [
   "Resuma meu dia",
 ];
 
-const chatMessageSchema = z.string().trim().min(1);
+const chatMessageSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(CHAT_MESSAGE_MAX_LENGTH, `A mensagem pode ter no máximo ${CHAT_MESSAGE_MAX_LENGTH} caracteres.`);
 const storedMessageSchema = z.object({
   id: z.string().min(1),
   role: messageRoleSchema,
@@ -124,11 +130,18 @@ function MessageBubble({
   userInitials: string;
 }) {
   const isUser = message.role === "user";
+  const [expanded, setExpanded] = useState(false);
+
+  const isLong = message.content.length > MESSAGE_PREVIEW_LENGTH;
+  const displayContent =
+    isLong && !expanded
+      ? message.content.slice(0, MESSAGE_PREVIEW_LENGTH)
+      : message.content;
 
   return (
     <div
       className={cn(
-        "flex gap-3 px-4 py-2",
+        "flex w-full min-w-0 gap-3 px-4 py-2",
         isUser && "flex-row-reverse",
       )}
     >
@@ -146,13 +159,41 @@ function MessageBubble({
 
       <div
         className={cn(
-          "max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+          "min-w-0 max-w-[min(75%,480px)] wrap-anywhere rounded-2xl px-4 py-3 text-sm leading-relaxed",
           isUser
             ? "rounded-tr-sm bg-card-opaque text-primary-title"
             : "rounded-tl-sm bg-input-opaque text-primary-title",
         )}
       >
-        {message.content}
+        <span>
+          {displayContent}
+          {isLong && !expanded && "…"}
+        </span>
+
+        {isLong && (
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            className={cn(
+              "mt-1.5 flex items-center gap-0.5 text-[10px] transition-colors",
+              isUser
+                ? "text-primary-title/50 hover:text-primary-title/80"
+                : "text-app-muted hover:text-secundary-title",
+            )}
+          >
+            {expanded ? (
+              <>
+                <ChevronUp size={10} />
+                Ver menos
+              </>
+            ) : (
+              <>
+                <ChevronDown size={10} />
+                Ver mais
+              </>
+            )}
+          </button>
+        )}
 
         <p className="mt-1.5 text-[10px] text-app-muted">
           {message.timestamp.toLocaleTimeString("pt-BR", {
@@ -254,6 +295,12 @@ export function AiChatPage() {
     textareaRef.current?.focus();
   }
 
+  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setInput(e.target.value);
+    e.target.style.height = "auto";
+    e.target.style.height = `${e.target.scrollHeight}px`;
+  }
+
   function handleSend(text: string = input) {
     const parsedMessage = chatMessageSchema.safeParse(text);
 
@@ -274,6 +321,10 @@ export function AiChatPage() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsTyping(true);
+
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -284,7 +335,7 @@ export function AiChatPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-primary-black">
+    <div className="flex h-screen w-full flex-col overflow-x-hidden bg-primary-black">
       <header className="flex shrink-0 items-center gap-3 border-b border-app-border px-6 py-4">
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-card-opaque text-secundary-title">
           <Sparkles size={18} strokeWidth={1.8} />
@@ -303,7 +354,7 @@ export function AiChatPage() {
       </header>
 
       <ScrollArea className="flex-1">
-        <div className="flex flex-col py-4">
+        <div className="flex w-full flex-col overflow-x-hidden py-4">
           {messages.map((message) => (
             <MessageBubble
               key={message.id}
@@ -342,7 +393,7 @@ export function AiChatPage() {
           <Textarea
             ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder={
               isTyping
@@ -356,7 +407,8 @@ export function AiChatPage() {
             }
             disabled={isTyping}
             rows={1}
-            className="flex-1 border-none bg-transparent px-2 py-1.5 focus:border-none"
+            maxLength={CHAT_MESSAGE_MAX_LENGTH}
+            className="max-h-36 min-w-0 flex-1 resize-none overflow-y-auto border-none bg-transparent px-2 py-1.5 focus:border-none"
           />
           <Button
             type="button"
@@ -379,9 +431,21 @@ export function AiChatPage() {
             )}
           </Button>
         </div>
-        <p className="mt-2 text-center text-[10px] text-app-muted">
-          Organiza.IA pode cometer erros. Verifique informações importantes.
-        </p>
+        <div className="mt-1.5 flex items-center justify-between px-1">
+          <p className="text-[10px] text-app-muted">
+            Organiza.IA pode cometer erros. Verifique informações importantes.
+          </p>
+          <span
+            className={cn(
+              "shrink-0 text-[10px] tabular-nums",
+              input.length >= CHAT_MESSAGE_MAX_LENGTH
+                ? "text-warning"
+                : "text-app-muted",
+            )}
+          >
+            {input.length}/{CHAT_MESSAGE_MAX_LENGTH}
+          </span>
+        </div>
       </div>
     </div>
   );
