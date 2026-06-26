@@ -1,0 +1,452 @@
+"use client";
+
+import { BotMessageSquare, ChevronDown, ChevronUp, Send, Sparkles, StopCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { z } from "zod";
+
+import { useAuthStore } from "@/features/auth";
+import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
+import { Button } from "@/shared/components/ui/button";
+import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { Textarea } from "@/shared/components/ui/textarea";
+import { cn, getProfileInitials } from "@/shared/lib/utils";
+
+const CHAT_MESSAGES_STORAGE_KEY = "organiza-ai:ai-chat-messages";
+const CHAT_MESSAGE_MAX_LENGTH = 2000;
+const MESSAGE_PREVIEW_LENGTH = 300;
+const messageRoleSchema = z.enum(["user", "assistant"]);
+
+type MessageRole = z.infer<typeof messageRoleSchema>;
+
+interface Message {
+  id: string;
+  role: MessageRole;
+  content: string;
+  timestamp: Date;
+}
+
+const SUGGESTED_PROMPTS = [
+  "Organize minha semana",
+  "Quais são meus compromissos de hoje?",
+  "Crie uma tarefa para amanhã",
+  "Resuma meu dia",
+];
+
+const chatMessageSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(CHAT_MESSAGE_MAX_LENGTH, `A mensagem pode ter no máximo ${CHAT_MESSAGE_MAX_LENGTH} caracteres.`);
+const storedMessageSchema = z.object({
+  id: z.string().min(1),
+  role: messageRoleSchema,
+  content: z.string().min(1),
+  timestamp: z.string().datetime(),
+});
+const storedMessagesSchema = z.array(storedMessageSchema).min(1);
+
+function isBrowser() {
+  return typeof window !== "undefined";
+}
+
+function getInitialMessages(): Message[] {
+  return [
+    {
+      id: "1",
+      role: "assistant",
+      content:
+        "Olá! Sou o Organiza.IA, seu assistente de produtividade. Posso te ajudar a organizar sua agenda, criar tarefas, resumir compromissos ou responder dúvidas. Como posso ajudar hoje?",
+      timestamp: new Date(),
+    },
+  ];
+}
+
+function getStoredMessages() {
+  if (!isBrowser()) {
+    return getInitialMessages();
+  }
+
+  try {
+    const storedMessages = window.localStorage.getItem(
+      CHAT_MESSAGES_STORAGE_KEY,
+    );
+
+    if (!storedMessages) {
+      return getInitialMessages();
+    }
+
+    const parsedMessages = storedMessagesSchema.safeParse(
+      JSON.parse(storedMessages),
+    );
+
+    if (!parsedMessages.success) {
+      return getInitialMessages();
+    }
+
+    return parsedMessages.data.map((message) => ({
+      ...message,
+      timestamp: new Date(message.timestamp),
+    }));
+  } catch {
+    return getInitialMessages();
+  }
+}
+
+function saveStoredMessages(messages: Message[]) {
+  if (!isBrowser()) {
+    return;
+  }
+
+  const storedMessages = storedMessagesSchema.safeParse(
+    messages.map((message) => ({
+      ...message,
+      timestamp: message.timestamp.toISOString(),
+    })),
+  );
+
+  if (!storedMessages.success) {
+    return;
+  }
+
+  window.localStorage.setItem(
+    CHAT_MESSAGES_STORAGE_KEY,
+    JSON.stringify(storedMessages.data),
+  );
+}
+
+function getNextMessageId(messages: Message[]) {
+  const numericMessageIds = messages
+    .map((message) => Number(message.id))
+    .filter((messageId) => Number.isInteger(messageId) && messageId > 0);
+
+  return Math.max(1, ...numericMessageIds) + 1;
+}
+
+function MessageBubble({
+  message,
+  userInitials,
+}: {
+  message: Message;
+  userInitials: string;
+}) {
+  const isUser = message.role === "user";
+  const [expanded, setExpanded] = useState(false);
+
+  const isLong = message.content.length > MESSAGE_PREVIEW_LENGTH;
+  const displayContent =
+    isLong && !expanded
+      ? message.content.slice(0, MESSAGE_PREVIEW_LENGTH)
+      : message.content;
+
+  return (
+    <div
+      className={cn(
+        "flex w-full min-w-0 gap-3 px-4 py-2",
+        isUser && "flex-row-reverse",
+      )}
+    >
+      {!isUser ? (
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card-opaque text-secundary-title">
+          <BotMessageSquare size={16} strokeWidth={1.8} />
+        </div>
+      ) : (
+        <Avatar className="h-8 w-8 shrink-0">
+          <AvatarFallback className="text-xs bg-card-opaque text-primary-title">
+            {userInitials}
+          </AvatarFallback>
+        </Avatar>
+      )}
+
+      <div
+        className={cn(
+          "min-w-0 max-w-[min(75%,480px)] wrap-anywhere rounded-2xl px-4 py-3 text-sm leading-relaxed",
+          isUser
+            ? "rounded-tr-sm bg-card-opaque text-primary-title"
+            : "rounded-tl-sm bg-input-opaque text-primary-title",
+        )}
+      >
+        <span>
+          {displayContent}
+          {isLong && !expanded && "…"}
+        </span>
+
+        {isLong && (
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            className={cn(
+              "mt-1.5 flex items-center gap-0.5 text-[10px] transition-colors",
+              isUser
+                ? "text-primary-title/50 hover:text-primary-title/80"
+                : "text-app-muted hover:text-secundary-title",
+            )}
+          >
+            {expanded ? (
+              <>
+                <ChevronUp size={10} />
+                Ver menos
+              </>
+            ) : (
+              <>
+                <ChevronDown size={10} />
+                Ver mais
+              </>
+            )}
+          </button>
+        )}
+
+        <p className="mt-1.5 text-[10px] text-app-muted">
+          {message.timestamp.toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function TypingIndicator() {
+  return (
+    <div className="flex gap-3 px-4 py-2">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card-opaque text-secundary-title">
+        <BotMessageSquare size={16} strokeWidth={1.8} />
+      </div>
+      <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-input-opaque px-4 py-3">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="h-1.5 w-1.5 rounded-full bg-app-muted animate-bounce"
+            style={{ animationDelay: `${i * 150}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AiChatPage() {
+  const session = useAuthStore((store) => store.session);
+  const [messages, setMessages] = useState<Message[]>(getInitialMessages);
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const nextMessageIdRef = useRef(getNextMessageId(messages));
+  const isResponsePendingRef = useRef(false);
+  const hasHydratedRef = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const hasMessages = messages.length > 1;
+  const userInitials = getProfileInitials(
+    session?.name ?? "Visitante",
+    session?.email ?? "sem sessão ativa",
+  );
+
+  useEffect(() => {
+    if (!hasHydratedRef.current) {
+      hasHydratedRef.current = true;
+
+      const storedMessages = getStoredMessages();
+      nextMessageIdRef.current = getNextMessageId(storedMessages);
+      setMessages(storedMessages);
+
+      return;
+    }
+
+    saveStoredMessages(messages);
+  }, [messages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: "end" });
+  }, [messages, isTyping]);
+
+  useEffect(() => {
+    if (!isTyping) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      const aiMessage: Message = {
+        id: createMessageId(),
+        role: "assistant",
+        content:
+          "Entendido! Estou processando sua solicitação. Em breve a integração com a IA estará disponível.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+      setIsTyping(false);
+      isResponsePendingRef.current = false;
+    }, 1500);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [isTyping]);
+
+  function createMessageId() {
+    const nextId = nextMessageIdRef.current;
+    nextMessageIdRef.current += 1;
+    return nextId.toString();
+  }
+
+  function handleStopResponse() {
+    isResponsePendingRef.current = false;
+    setIsTyping(false);
+    textareaRef.current?.focus();
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setInput(e.target.value);
+    e.target.style.height = "auto";
+    e.target.style.height = `${e.target.scrollHeight}px`;
+  }
+
+  function handleSend(text: string = input) {
+    const parsedMessage = chatMessageSchema.safeParse(text);
+
+    if (!parsedMessage.success || isResponsePendingRef.current) {
+      return;
+    }
+
+    const trimmed = parsedMessage.data;
+    isResponsePendingRef.current = true;
+
+    const userMessage: Message = {
+      id: createMessageId(),
+      role: "user",
+      content: trimmed,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setIsTyping(true);
+
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }
+
+  return (
+    <div className="flex h-screen w-full flex-col overflow-x-hidden bg-primary-black">
+      <header className="flex shrink-0 items-center gap-3 border-b border-app-border px-6 py-4">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-card-opaque text-secundary-title">
+          <Sparkles size={18} strokeWidth={1.8} />
+        </div>
+        <div>
+          <h1 className="text-sm font-semibold text-primary-title">
+            Organiza.IA
+          </h1>
+          <p className="text-xs text-app-muted">Assistente de produtividade</p>
+        </div>
+
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="text-xs text-app-muted">Online</span>
+        </div>
+      </header>
+
+      <ScrollArea className="flex-1">
+        <div className="flex w-full flex-col overflow-x-hidden py-4">
+          {messages.map((message) => (
+            <MessageBubble
+              key={message.id}
+              message={message}
+              userInitials={userInitials}
+            />
+          ))}
+          {isTyping && <TypingIndicator />}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
+
+      {!hasMessages && (
+        <div className="shrink-0 flex flex-wrap gap-2 px-6 pb-1">
+          {SUGGESTED_PROMPTS.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              onClick={() => handleSend(prompt)}
+              disabled={isTyping}
+              className={cn(
+                "rounded-full border border-app-border px-3 py-1.5",
+                "text-xs text-app-muted transition-colors duration-150",
+                "hover:border-secundary-title/50 hover:text-primary-title hover:bg-card-opaque",
+                "disabled:cursor-not-allowed disabled:opacity-40",
+              )}
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="shrink-0 px-4 pb-3 pt-1">
+        <div className="flex items-end gap-2 rounded-xl border border-app-border bg-input-opaque p-2">
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              isTyping
+                ? "Aguarde a IA responder..."
+                : "Escreva uma mensagem... (Enter para enviar, Shift+Enter para nova linha)"
+            }
+            aria-label={
+              isTyping
+                ? "Aguardando resposta da IA"
+                : "Mensagem para o assistente"
+            }
+            disabled={isTyping}
+            rows={1}
+            maxLength={CHAT_MESSAGE_MAX_LENGTH}
+            className="max-h-36 min-w-0 flex-1 resize-none overflow-y-auto border-none bg-transparent px-2 py-1.5 focus:border-none"
+          />
+          <Button
+            type="button"
+            size="icon"
+            onClick={() => (isTyping ? handleStopResponse() : handleSend())}
+            disabled={!isTyping && !input.trim()}
+            aria-label={isTyping ? "Parar resposta da IA" : "Enviar mensagem"}
+            aria-busy={isTyping}
+            className={cn(
+              "shrink-0 transition-all duration-150",
+              isTyping
+                ? "bg-destructive/20 text-destructive hover:bg-destructive/30"
+                : "bg-secundary-title/20 text-secundary-title hover:bg-secundary-title/30",
+            )}
+          >
+            {isTyping ? (
+              <StopCircle size={18} strokeWidth={1.8} />
+            ) : (
+              <Send size={16} strokeWidth={2} />
+            )}
+          </Button>
+        </div>
+        <div className="mt-1.5 flex items-center justify-between px-1">
+          <p className="text-[10px] text-app-muted">
+            Organiza.IA pode cometer erros. Verifique informações importantes.
+          </p>
+          <span
+            className={cn(
+              "shrink-0 text-[10px] tabular-nums",
+              input.length >= CHAT_MESSAGE_MAX_LENGTH
+                ? "text-warning"
+                : "text-app-muted",
+            )}
+          >
+            {input.length}/{CHAT_MESSAGE_MAX_LENGTH}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
