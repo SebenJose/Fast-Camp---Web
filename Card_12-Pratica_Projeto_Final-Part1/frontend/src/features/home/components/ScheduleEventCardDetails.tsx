@@ -70,13 +70,13 @@ export function ScheduleEventCardDetails({
               {isDeleting ? "Excluindo..." : "Excluir"}
             </Button>
           </AlertDialogTrigger>
-          <AlertDialogContent className="border border-app-border bg-opaque-black text-primary-title shadow-2xl shadow-black/40">
+          <AlertDialogContent className="overflow-hidden ring-0 border border-app-border bg-opaque-black text-primary-title shadow-2xl shadow-black/40">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-primary-title">
                 Excluir este card?
               </AlertDialogTitle>
               <AlertDialogDescription className="text-secundary-title">
-                {`Essa ação remove "${event.title}" da agenda de hoje.`}
+                {`Essa ação remove "${event.title.length > 40 ? `${event.title.slice(0, 40)}…` : event.title}" da agenda de hoje.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="border-app-border bg-input-opaque/55">
