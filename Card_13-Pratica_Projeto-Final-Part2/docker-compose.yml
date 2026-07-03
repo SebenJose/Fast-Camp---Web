@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: organiza_ia
+      POSTGRES_USER: organiza_ia
+      POSTGRES_PASSWORD: organiza_ia
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U organiza_ia -d organiza_ia"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://organiza_ia:organiza_ia@db:5432/organiza_ia
+      SECRET_KEY: ${SECRET_KEY:?Configure SECRET_KEY no arquivo .env}
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
