@@ -1,11 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import { KeyRound, ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import {
+  AUTH_FORM_ERROR_CLASS_NAME,
   AUTH_ICON_INPUT_CLASS_NAME,
   AUTH_INLINE_LINK_CLASS_NAME,
   AUTH_PRIMARY_ACTION_CLASS_NAME,
@@ -14,6 +16,7 @@ import {
 } from "@/shared/components/auth-form";
 import { cn } from "@/shared/lib/utils";
 
+import type { ForgotPasswordActionResult } from "../api/forgot-password-api";
 import {
   type ForgotPasswordVerifyFormData,
   forgotPasswordVerifySchema,
@@ -21,22 +24,60 @@ import {
 
 type ForgotPasswordVerifyCardProps = {
   email: string;
-  onSubmit: (code: string) => void;
+  onSubmit: (code: string) => Promise<ForgotPasswordActionResult>;
+  onResend: () => Promise<ForgotPasswordActionResult>;
   onBack: () => void;
 };
 
 export function ForgotPasswordVerifyCard({
   email,
   onSubmit,
+  onResend,
   onBack,
 }: ForgotPasswordVerifyCardProps) {
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<ForgotPasswordVerifyFormData>({
     resolver: zodResolver(forgotPasswordVerifySchema),
   });
+
+  const isBusy = isSubmitting || isResending;
+
+  async function handleVerifySubmit({ code }: ForgotPasswordVerifyFormData) {
+    setFormError(null);
+
+    const result = await onSubmit(code).catch(() => ({
+      ok: false as const,
+      message: "Não foi possível conectar ao serviço de recuperação de senha.",
+    }));
+
+    if (!result.ok) {
+      setFormError(result.message);
+    }
+  }
+
+  async function handleResend() {
+    setFormError(null);
+    setIsResending(true);
+
+    const result = await onResend()
+      .catch(() => ({
+        ok: false as const,
+        message:
+          "Não foi possível conectar ao serviço de recuperação de senha.",
+      }))
+      .finally(() => {
+        setIsResending(false);
+      });
+
+    if (!result.ok) {
+      toast.error(result.message);
+    }
+  }
 
   return (
     <AuthFormCard
@@ -54,7 +95,7 @@ export function ForgotPasswordVerifyCard({
         <form
           className="space-y-5"
           noValidate
-          onSubmit={handleSubmit(({ code }) => onSubmit(code))}
+          onSubmit={handleSubmit(handleVerifySubmit)}
         >
           <div className="space-y-3">
             <label
@@ -89,25 +130,32 @@ export function ForgotPasswordVerifyCard({
             )}
           </div>
 
+          {formError && (
+            <p className={AUTH_FORM_ERROR_CLASS_NAME}>{formError}</p>
+          )}
+
           <div className="flex flex-col gap-3">
             <button
               className={AUTH_PRIMARY_ACTION_CLASS_NAME}
+              disabled={isBusy}
               type="submit"
             >
-              Confirmar código
+              {isSubmitting ? "Confirmando..." : "Confirmar código"}
             </button>
             <button
               className={AUTH_SECONDARY_ACTION_CLASS_NAME}
+              disabled={isBusy}
               type="button"
-              onClick={() => toast.info("Novo código enviado.")}
+              onClick={handleResend}
             >
-              Reenviar código
+              {isResending ? "Reenviando..." : "Reenviar código"}
             </button>
           </div>
 
           <div className="flex justify-center pt-2 w-full">
             <button
               className={`${AUTH_INLINE_LINK_CLASS_NAME} cursor-pointer bg-transparent border-0 mx-auto`}
+              disabled={isBusy}
               type="button"
               onClick={onBack}
             >

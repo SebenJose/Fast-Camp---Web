@@ -2,10 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import { useState } from "react";
 import { Lock, ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 import {
+  AUTH_FORM_ERROR_CLASS_NAME,
   AUTH_ICON_INPUT_CLASS_NAME,
   AUTH_INLINE_LINK_CLASS_NAME,
   AUTH_PRIMARY_ACTION_CLASS_NAME,
@@ -13,25 +15,49 @@ import {
 } from "@/shared/components/auth-form";
 import { cn } from "@/shared/lib/utils";
 
+import type { ForgotPasswordActionResult } from "../api/forgot-password-api";
 import {
   type ForgotPasswordResetFormData,
   forgotPasswordResetSchema,
 } from "../schemas/forgot-password-schemas";
 
 type ForgotPasswordResetCardProps = {
-  onSubmit: (password: string) => void;
+  onSubmit: (
+    password: string,
+    passwordConfirmation: string,
+  ) => Promise<ForgotPasswordActionResult>;
 };
 
 export function ForgotPasswordResetCard({
   onSubmit,
 }: ForgotPasswordResetCardProps) {
+  const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<ForgotPasswordResetFormData>({
     resolver: zodResolver(forgotPasswordResetSchema),
   });
+
+  async function handleResetSubmit({
+    password,
+    passwordConfirmation,
+  }: ForgotPasswordResetFormData) {
+    setFormError(null);
+
+    const result = await onSubmit(password, passwordConfirmation).catch(
+      () => ({
+        ok: false as const,
+        message:
+          "Não foi possível conectar ao serviço de recuperação de senha.",
+      }),
+    );
+
+    if (!result.ok) {
+      setFormError(result.message);
+    }
+  }
 
   return (
     <AuthFormCard
@@ -46,7 +72,7 @@ export function ForgotPasswordResetCard({
         <form
           className="space-y-5"
           noValidate
-          onSubmit={handleSubmit(({ password }) => onSubmit(password))}
+          onSubmit={handleSubmit(handleResetSubmit)}
         >
           <div className="space-y-3">
             <label
@@ -121,11 +147,16 @@ export function ForgotPasswordResetCard({
             )}
           </div>
 
+          {formError && (
+            <p className={AUTH_FORM_ERROR_CLASS_NAME}>{formError}</p>
+          )}
+
           <button
             className={AUTH_PRIMARY_ACTION_CLASS_NAME}
+            disabled={isSubmitting}
             type="submit"
           >
-            Atualizar senha
+            {isSubmitting ? "Atualizando..." : "Atualizar senha"}
           </button>
 
           <div className="flex justify-center pt-2 w-full">

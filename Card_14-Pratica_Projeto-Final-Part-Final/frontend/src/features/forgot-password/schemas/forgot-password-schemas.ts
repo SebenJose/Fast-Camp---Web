@@ -16,6 +16,10 @@ export const forgotPasswordVerifySchema = z.object({
 
 export const forgotPasswordResetSchema = passwordWithConfirmationSchema;
 
+export const forgotPasswordApiResponseSchema = z.object({
+  message: z.string().optional(),
+});
+
 export type ForgotPasswordRequestFormData = z.infer<
   typeof forgotPasswordRequestSchema
 >;
@@ -24,4 +28,7 @@ export type ForgotPasswordVerifyFormData = z.infer<
 >;
 export type ForgotPasswordResetFormData = z.infer<
   typeof forgotPasswordResetSchema
+>;
+export type ForgotPasswordApiResponse = z.infer<
+  typeof forgotPasswordApiResponseSchema
 >;

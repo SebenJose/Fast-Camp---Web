@@ -2,10 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import { useState } from "react";
 import { Mail, ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 import {
+  AUTH_FORM_ERROR_CLASS_NAME,
   AUTH_ICON_INPUT_CLASS_NAME,
   AUTH_INLINE_LINK_CLASS_NAME,
   AUTH_PRIMARY_ACTION_CLASS_NAME,
@@ -13,6 +15,7 @@ import {
 } from "@/shared/components/auth-form";
 import { cn } from "@/shared/lib/utils";
 
+import type { ForgotPasswordActionResult } from "../api/forgot-password-api";
 import {
   type ForgotPasswordRequestFormData,
   forgotPasswordRequestSchema,
@@ -20,23 +23,37 @@ import {
 
 type ForgotPasswordRequestCardProps = {
   initialEmail: string;
-  onSubmit: (email: string) => void;
+  onSubmit: (email: string) => Promise<ForgotPasswordActionResult>;
 };
 
 export function ForgotPasswordRequestCard({
   initialEmail,
   onSubmit,
 }: ForgotPasswordRequestCardProps) {
+  const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<ForgotPasswordRequestFormData>({
     defaultValues: {
       email: initialEmail,
     },
     resolver: zodResolver(forgotPasswordRequestSchema),
   });
+
+  async function handleRequestSubmit({ email }: ForgotPasswordRequestFormData) {
+    setFormError(null);
+
+    const result = await onSubmit(email).catch(() => ({
+      ok: false as const,
+      message: "Não foi possível conectar ao serviço de recuperação de senha.",
+    }));
+
+    if (!result.ok) {
+      setFormError(result.message);
+    }
+  }
 
   return (
     <AuthFormCard
@@ -51,7 +68,7 @@ export function ForgotPasswordRequestCard({
         <form
           className="space-y-5"
           noValidate
-          onSubmit={handleSubmit(({ email }) => onSubmit(email))}
+          onSubmit={handleSubmit(handleRequestSubmit)}
         >
           <div className="space-y-3">
             <label
@@ -84,11 +101,16 @@ export function ForgotPasswordRequestCard({
             )}
           </div>
 
+          {formError && (
+            <p className={AUTH_FORM_ERROR_CLASS_NAME}>{formError}</p>
+          )}
+
           <button
             className={AUTH_PRIMARY_ACTION_CLASS_NAME}
+            disabled={isSubmitting}
             type="submit"
           >
-            Enviar código
+            {isSubmitting ? "Enviando..." : "Enviar código"}
           </button>
 
           <div className="flex justify-center pt-2 w-full">
