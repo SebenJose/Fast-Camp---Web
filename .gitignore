@@ -15,3 +15,6 @@ build/
 
 # Env
 .env
+
+# Claude Code (configuração local)
+.claude/
