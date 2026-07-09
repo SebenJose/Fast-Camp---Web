@@ -25,9 +25,36 @@ services:
       DATABASE_URL: postgresql+psycopg://organiza_ia:organiza_ia@db:5432/organiza_ia
       SECRET_KEY: ${SECRET_KEY:?Configure SECRET_KEY no arquivo .env}
       CORS_ORIGINS: http://localhost:3000
+      MAIL_SERVER: mailpit
+      MAIL_PORT: 1025
+      MAIL_SUPPRESS_SEND: "False"
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      API_PROXY_URL: http://backend:8000
+      NEXT_PUBLIC_API_MOCKING: disabled
+    depends_on:
+      - backend
+
+  mailpit:
+    image: axllent/mailpit
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - "8025:8025"
+      - "1025:1025"
 
 volumes:
   postgres_data:

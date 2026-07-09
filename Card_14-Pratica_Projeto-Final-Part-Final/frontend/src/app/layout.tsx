@@ -55,7 +55,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const shouldUseMocks = process.env.NODE_ENV === "development";
+  const shouldUseMocks = process.env.NEXT_PUBLIC_API_MOCKING === "enabled";
   const appContent = <QueryProvider>{children}</QueryProvider>;
 
   return (

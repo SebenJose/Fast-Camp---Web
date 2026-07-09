@@ -7,7 +7,7 @@ type MockProviderProps = {
 };
 
 function shouldEnableMocking() {
-  return process.env.NODE_ENV === "development";
+  return process.env.NEXT_PUBLIC_API_MOCKING === "enabled";
 }
 
 function isApiRequest(request: Request) {
