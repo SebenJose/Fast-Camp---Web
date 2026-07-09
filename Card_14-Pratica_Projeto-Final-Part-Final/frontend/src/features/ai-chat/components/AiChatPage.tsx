@@ -2,7 +2,7 @@
 
 import { BotMessageSquare, ChevronDown, ChevronUp, Send, Sparkles, StopCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { z } from "zod";
+import { toast } from "sonner";
 
 import { useAuthStore } from "@/features/auth";
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
@@ -11,18 +11,24 @@ import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { cn, getProfileInitials } from "@/shared/lib/utils";
 
-const CHAT_MESSAGES_STORAGE_KEY = "organiza-ai:ai-chat-messages";
-const CHAT_MESSAGE_MAX_LENGTH = 2000;
-const MESSAGE_PREVIEW_LENGTH = 300;
-const messageRoleSchema = z.enum(["user", "assistant"]);
+import { getChatMessages, sendChatMessage } from "../api/ai-chat-api";
+import {
+  CHAT_MESSAGE_MAX_LENGTH,
+  chatInputSchema,
+  type ChatApiMessage,
+  type ChatMessageRole,
+} from "../schemas/ai-chat-schemas";
+import { AiChatPageSkeleton } from "./AiChatPageSkeleton";
 
-type MessageRole = z.infer<typeof messageRoleSchema>;
+const MESSAGE_PREVIEW_LENGTH = 300;
+const WELCOME_MESSAGE_ID = "welcome";
 
 interface Message {
   id: string;
-  role: MessageRole;
+  role: ChatMessageRole;
   content: string;
   timestamp: Date;
+  tokens?: number;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -32,94 +38,26 @@ const SUGGESTED_PROMPTS = [
   "Resuma meu dia",
 ];
 
-const chatMessageSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(CHAT_MESSAGE_MAX_LENGTH, `A mensagem pode ter no máximo ${CHAT_MESSAGE_MAX_LENGTH} caracteres.`);
-const storedMessageSchema = z.object({
-  id: z.string().min(1),
-  role: messageRoleSchema,
-  content: z.string().min(1),
-  timestamp: z.string().datetime(),
-});
-const storedMessagesSchema = z.array(storedMessageSchema).min(1);
-
-function isBrowser() {
-  return typeof window !== "undefined";
+function getWelcomeMessage(): Message {
+  return {
+    id: WELCOME_MESSAGE_ID,
+    role: "assistant",
+    content:
+      "Olá! Sou o Organiza.IA, seu assistente de produtividade. Posso te ajudar a organizar sua agenda, criar tarefas, resumir compromissos ou responder dúvidas sobre o seu planejamento. Como posso ajudar hoje?",
+    timestamp: new Date(),
+  };
 }
 
-function getInitialMessages(): Message[] {
-  return [
-    {
-      id: "1",
-      role: "assistant",
-      content:
-        "Olá! Sou o Organiza.IA, seu assistente de produtividade. Posso te ajudar a organizar sua agenda, criar tarefas, resumir compromissos ou responder dúvidas. Como posso ajudar hoje?",
-      timestamp: new Date(),
-    },
-  ];
-}
+function toMessage(apiMessage: ChatApiMessage): Message {
+  const tokens = apiMessage.inputTokens + apiMessage.outputTokens;
 
-function getStoredMessages() {
-  if (!isBrowser()) {
-    return getInitialMessages();
-  }
-
-  try {
-    const storedMessages = window.localStorage.getItem(
-      CHAT_MESSAGES_STORAGE_KEY,
-    );
-
-    if (!storedMessages) {
-      return getInitialMessages();
-    }
-
-    const parsedMessages = storedMessagesSchema.safeParse(
-      JSON.parse(storedMessages),
-    );
-
-    if (!parsedMessages.success) {
-      return getInitialMessages();
-    }
-
-    return parsedMessages.data.map((message) => ({
-      ...message,
-      timestamp: new Date(message.timestamp),
-    }));
-  } catch {
-    return getInitialMessages();
-  }
-}
-
-function saveStoredMessages(messages: Message[]) {
-  if (!isBrowser()) {
-    return;
-  }
-
-  const storedMessages = storedMessagesSchema.safeParse(
-    messages.map((message) => ({
-      ...message,
-      timestamp: message.timestamp.toISOString(),
-    })),
-  );
-
-  if (!storedMessages.success) {
-    return;
-  }
-
-  window.localStorage.setItem(
-    CHAT_MESSAGES_STORAGE_KEY,
-    JSON.stringify(storedMessages.data),
-  );
-}
-
-function getNextMessageId(messages: Message[]) {
-  const numericMessageIds = messages
-    .map((message) => Number(message.id))
-    .filter((messageId) => Number.isInteger(messageId) && messageId > 0);
-
-  return Math.max(1, ...numericMessageIds) + 1;
+  return {
+    id: apiMessage.id,
+    role: apiMessage.role,
+    content: apiMessage.content,
+    timestamp: new Date(apiMessage.createdAt),
+    tokens: apiMessage.role === "assistant" && tokens > 0 ? tokens : undefined,
+  };
 }
 
 function MessageBubble({
@@ -200,6 +138,9 @@ function MessageBubble({
             hour: "2-digit",
             minute: "2-digit",
           })}
+          {message.tokens !== undefined && (
+            <span className="tabular-nums"> · {message.tokens} tokens</span>
+          )}
         </p>
       </div>
     </div>
@@ -227,71 +168,50 @@ function TypingIndicator() {
 
 export function AiChatPage() {
   const session = useAuthStore((store) => store.session);
-  const [messages, setMessages] = useState<Message[]>(getInitialMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const nextMessageIdRef = useRef(getNextMessageId(messages));
-  const isResponsePendingRef = useRef(false);
-  const hasHydratedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const pendingIdRef = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const hasMessages = messages.length > 1;
+  const hasMessages = messages.some(
+    (message) => message.id !== WELCOME_MESSAGE_ID,
+  );
   const userInitials = getProfileInitials(
     session?.name ?? "Visitante",
     session?.email ?? "sem sessão ativa",
   );
 
   useEffect(() => {
-    if (!hasHydratedRef.current) {
-      hasHydratedRef.current = true;
+    let isMounted = true;
 
-      const storedMessages = getStoredMessages();
-      nextMessageIdRef.current = getNextMessageId(storedMessages);
-      setMessages(storedMessages);
+    void getChatMessages().then((history) => {
+      if (!isMounted) {
+        return;
+      }
 
-      return;
-    }
+      const restored = (history ?? []).map(toMessage);
+      setMessages(
+        restored.length > 0 ? restored : [getWelcomeMessage()],
+      );
+      setIsLoadingHistory(false);
+    });
 
-    saveStoredMessages(messages);
-  }, [messages]);
+    return () => {
+      isMounted = false;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [messages, isTyping]);
 
-  useEffect(() => {
-    if (!isTyping) {
-      return;
-    }
-
-    const timeoutId = setTimeout(() => {
-      const aiMessage: Message = {
-        id: createMessageId(),
-        role: "assistant",
-        content:
-          "Entendido! Estou processando sua solicitação. Em breve a integração com a IA estará disponível.",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-      setIsTyping(false);
-      isResponsePendingRef.current = false;
-    }, 1500);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [isTyping]);
-
-  function createMessageId() {
-    const nextId = nextMessageIdRef.current;
-    nextMessageIdRef.current += 1;
-    return nextId.toString();
-  }
-
   function handleStopResponse() {
-    isResponsePendingRef.current = false;
-    setIsTyping(false);
+    abortControllerRef.current?.abort();
     textareaRef.current?.focus();
   }
 
@@ -301,37 +221,70 @@ export function AiChatPage() {
     e.target.style.height = `${e.target.scrollHeight}px`;
   }
 
-  function handleSend(text: string = input) {
-    const parsedMessage = chatMessageSchema.safeParse(text);
+  async function handleSend(text: string = input) {
+    const parsedMessage = chatInputSchema.safeParse(text);
 
-    if (!parsedMessage.success || isResponsePendingRef.current) {
+    if (!parsedMessage.success || isTyping) {
       return;
     }
 
-    const trimmed = parsedMessage.data;
-    isResponsePendingRef.current = true;
-
-    const userMessage: Message = {
-      id: createMessageId(),
+    const content = parsedMessage.data;
+    pendingIdRef.current += 1;
+    const optimisticMessage: Message = {
+      id: `pending-${pendingIdRef.current}`,
       role: "user",
-      content: trimmed,
+      content,
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => [...prev, optimisticMessage]);
     setInput("");
     setIsTyping(true);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const result = await sendChatMessage(content, abortController.signal);
+
+    abortControllerRef.current = null;
+    setIsTyping(false);
+
+    if (!result.ok) {
+      setMessages((prev) =>
+        prev.filter((message) => message.id !== optimisticMessage.id),
+      );
+      setInput(content);
+
+      if (!result.aborted) {
+        toast.error(result.message);
+      }
+
+      return;
+    }
+
+    const [persistedUserMessage, assistantMessage] =
+      result.messages.map(toMessage);
+
+    setMessages((prev) => [
+      ...prev.filter((message) => message.id !== optimisticMessage.id),
+      persistedUserMessage,
+      assistantMessage,
+    ]);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      void handleSend();
     }
+  }
+
+  if (isLoadingHistory) {
+    return <AiChatPageSkeleton />;
   }
 
   return (
@@ -373,7 +326,7 @@ export function AiChatPage() {
             <button
               key={prompt}
               type="button"
-              onClick={() => handleSend(prompt)}
+              onClick={() => void handleSend(prompt)}
               disabled={isTyping}
               className={cn(
                 "rounded-full border border-app-border px-3 py-1.5",
@@ -413,7 +366,9 @@ export function AiChatPage() {
           <Button
             type="button"
             size="icon"
-            onClick={() => (isTyping ? handleStopResponse() : handleSend())}
+            onClick={() =>
+              isTyping ? handleStopResponse() : void handleSend()
+            }
             disabled={!isTyping && !input.trim()}
             aria-label={isTyping ? "Parar resposta da IA" : "Enviar mensagem"}
             aria-busy={isTyping}
