@@ -72,6 +72,23 @@ class Schedule:
 
 
 @table_registry.mapped_as_dataclass
+class ChatMessage:
+    __tablename__ = 'chat_messages'
+
+    user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id'), index=True)
+    role: Mapped[str]
+    content: Mapped[str]
+    input_tokens: Mapped[int] = mapped_column(default=0)
+    output_tokens: Mapped[int] = mapped_column(default=0)
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, insert_default=utcnow, index=True
+    )
+
+
+@table_registry.mapped_as_dataclass
 class ScheduleEvent:
     __tablename__ = 'schedule_events'
 

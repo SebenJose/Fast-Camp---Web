@@ -302,3 +302,37 @@ class UpdateDayRangeRequest(BaseModel):
 
 class ToggleEventRequest(BaseModel):
     userId: str = Field(max_length=MAX_USER_ID_LENGTH)
+
+
+CHAT_MESSAGE_MAX_LENGTH = 2000
+
+
+class SendChatMessageRequest(BaseModel):
+    content: str
+
+    @field_validator('content')
+    @classmethod
+    def content_valid(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError('Escreva uma mensagem para enviar.')
+        if len(stripped) > CHAT_MESSAGE_MAX_LENGTH:
+            raise ValueError(
+                f'A mensagem pode ter no máximo '
+                f'{CHAT_MESSAGE_MAX_LENGTH} caracteres.'
+            )
+        return stripped
+
+
+class ChatMessagePublic(BaseModel):
+    id: str
+    role: str
+    content: str
+    createdAt: str
+    inputTokens: int
+    outputTokens: int
+
+
+class ChatMessagesResponse(BaseModel):
+    message: str | None = None
+    messages: list[ChatMessagePublic] = Field(default_factory=list)

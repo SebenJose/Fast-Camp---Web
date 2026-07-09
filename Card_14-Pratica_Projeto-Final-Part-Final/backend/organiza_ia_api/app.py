@@ -8,7 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from organiza_ia_api.routers import auth, password_reset, schedule, users
+from organiza_ia_api.routers import (
+    auth,
+    chat,
+    password_reset,
+    schedule,
+    users,
+)
 from organiza_ia_api.schemas import Message
 from organiza_ia_api.settings import get_settings
 
@@ -124,6 +130,7 @@ async def unhandled_exception_handler(
 
 
 app.include_router(auth.router)
+app.include_router(chat.router)
 app.include_router(password_reset.router)
 app.include_router(users.router)
 app.include_router(schedule.router)

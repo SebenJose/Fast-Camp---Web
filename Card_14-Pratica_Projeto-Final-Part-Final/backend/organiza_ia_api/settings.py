@@ -23,6 +23,18 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: str = 'http://localhost:3000'
 
+    AI_API_KEY: str = ''
+    AI_BASE_URL: str = 'https://openrouter.ai/api/v1'
+    # Lista separada por vírgula: cada modelo é fallback do anterior
+    AI_MODEL: str = (
+        'openai/gpt-oss-20b:free,'
+        'openai/gpt-oss-120b:free,'
+        'meta-llama/llama-3.3-70b-instruct:free,'
+        'qwen/qwen3-next-80b-a3b-instruct:free'
+    )
+    AI_MAX_OUTPUT_TOKENS: int = 512
+    AI_TIMEOUT_SECONDS: float = 30.0
+
     MAIL_USERNAME: str = 'organiza-ia@example.com'
     MAIL_PASSWORD: str = ''
     MAIL_FROM: str = 'organiza-ia@example.com'
