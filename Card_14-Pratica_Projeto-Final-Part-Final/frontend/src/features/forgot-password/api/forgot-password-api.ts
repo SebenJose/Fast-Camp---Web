@@ -65,7 +65,7 @@ async function postForgotPassword(
 
   return {
     ok: true,
-    message: data.message,
+    message: data.message ?? undefined,
   };
 }
 

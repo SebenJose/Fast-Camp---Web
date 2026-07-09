@@ -43,8 +43,8 @@ export const mockAuthUserSchema = z.object({
 export const mockAuthUsersSchema = z.array(mockAuthUserSchema);
 
 export const authApiResponseSchema = z.object({
-  message: z.string().optional(),
-  session: mockAuthSessionSchema.nullable().optional(),
+  message: z.string().nullish(),
+  session: mockAuthSessionSchema.nullish(),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;

@@ -17,7 +17,7 @@ export const forgotPasswordVerifySchema = z.object({
 export const forgotPasswordResetSchema = passwordWithConfirmationSchema;
 
 export const forgotPasswordApiResponseSchema = z.object({
-  message: z.string().optional(),
+  message: z.string().nullish(),
 });
 
 export type ForgotPasswordRequestFormData = z.infer<

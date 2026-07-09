@@ -118,8 +118,8 @@ export const storedScheduleSchema = z.object({
 });
 
 export const scheduleApiResponseSchema = z.object({
-  message: z.string().optional(),
-  schedule: storedScheduleSchema.optional(),
+  message: z.string().nullish(),
+  schedule: storedScheduleSchema.nullish(),
 });
 
 export const scheduleUserRequestSchema = z.object({
