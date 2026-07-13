@@ -1,14 +1,12 @@
-# Organiza.IA
+# Organiza.IA — Frontend
 
-Frontend inicial de um dashboard para interação com um agente inteligente de produtividade. O projeto foi desenvolvido como a primeira etapa do sistema final, com telas de autenticação, recuperação de senha, agenda diária, dashboard com dados mockados e uma interface inicial de chat com IA.
+Frontend em Next.js do Organiza.IA, assistente de produtividade pessoal movido por IA. É a camada de interface do MVP final: telas de autenticação, recuperação de senha, agenda diária, **chat com agente inteligente**, **dashboard de métricas reais** e **cobrança por tokens**, todas integradas à API FastAPI (Card_14/backend). A base visual veio da Part 1 (Card_12), onde tudo era simulado com MSW + `localStorage`; nesta etapa os dados são reais, vindos do backend.
 
 ## Descrição do Projeto
 
-O Organiza.IA é um gerenciador de rotina orientado por inteligência artificial. A proposta não é copiar uma agenda tradicional, que costuma listar tarefas por dia, mês e ano, mas criar uma experiência mais focada: o usuário planeja a semana com apoio da IA e acompanha, na tela principal, apenas o dia atual.
+O Organiza.IA é um gerenciador de rotina orientado por inteligência artificial. A proposta não é copiar uma agenda tradicional, que lista tarefas por dia, mês e ano, mas criar uma experiência mais focada: o usuário planeja a semana com apoio da IA e acompanha, na tela principal, apenas o dia atual.
 
-Essa escolha reduz a sobrecarga visual e ajuda o usuário a concentrar energia no que precisa ser feito hoje, evitando a ansiedade de visualizar todos os compromissos futuros ao mesmo tempo. A agenda diária funciona como uma timeline dividida por períodos reais do dia, com blocos de atividades, horários de descanso, alimentação, exercício e tarefas comuns da rotina.
-
-O dashboard complementa essa visão com indicadores de produtividade e qualidade de vida, como tarefas concluídas, tempo de uso, interações com a IA e consumo de tokens. A ideia para a evolução do produto é limitar os assuntos tratados pela IA ao escopo de organização pessoal, evitando que ela vire uma ferramenta genérica. O consumo de tokens seria calculado pela complexidade da solicitação e pelo esforço de refatorar planos já criados: quanto maior a mudança ou quanto mais vezes um planejamento precisar ser refeito, maior será o custo estimado.
+Essa escolha reduz a sobrecarga visual e ajuda o usuário a concentrar energia no que precisa ser feito hoje. A agenda diária funciona como uma timeline dividida por períodos reais do dia (manhã, almoço, tarde, noite), com blocos de atividades. O chat permite conversar com um agente que, além de responder sobre planejamento, **cria e consulta cards da agenda de verdade**. O dashboard traz indicadores de produtividade e uso da IA, e a tela de cobrança mostra o saldo de tokens, o histórico de consumo e a recarga.
 
 ## Tema e Propósito
 
@@ -16,100 +14,75 @@ Tema: assistente de produtividade e organização pessoal.
 
 Propósito: ajudar pessoas a planejarem a semana com mais clareza e executarem o dia com menos distração, usando IA como apoio para estruturar rotinas realistas.
 
+## Escopo da Entrega
 
-## Escopo do Desafio
+Esta entrega cobre a interface completa e integrada do MVP:
 
-Esta entrega cobre a base visual e navegável do projeto final. A aplicação contém:
+- Login e cadastro com autenticação real (cookie httpOnly emitido pela API).
+- Recuperação de senha em etapas, integrada ao envio real de código por e-mail.
+- Agenda diária como tela principal protegida, persistida no backend.
+- Chat com IA: envio real de mensagens, histórico persistido, indicador de digitação, contagem de tokens e reação ao saldo esgotado.
+- Dashboard com métricas reais (mensagens, tempo ativo, tokens, tarefas, gráficos) vindas de `GET /api/metrics`.
+- Cobrança por tokens: saldo atual, histórico de consumo/recargas e recarga simulada.
+- Navegação entre telas protegidas por sessão real.
 
-- Login com formulário funcional mockado.
-- Cadastro com nome, e-mail, senha e confirmação de senha.
-- Recuperação de senha em etapas.(apenas visual)
-- Agenda diária como tela principal protegida.
-- Dashboard com métricas e gráficos fictícios.
-- Interface inicial de chat com IA, ainda sem integração real com LLM.
-- Navegação entre telas protegidas por sessão mockada.
-
-Nesta etapa, os dados são simulados no frontend. Não há autenticação real, banco de dados real ou chamada para uma LLM externa.
-
+Os dados são servidos pela API FastAPI. O MSW continua no projeto, mas **apenas como recurso opcional de desenvolvimento offline** (ligado por variável de ambiente); por padrão a aplicação fala com a API real.
 
 ## Tecnologias Utilizadas
 
-- Next.js 16 com App Router.
+- Next.js 16 com App Router (proxy `/api/*` → API FastAPI via `rewrites`).
 - React 19.
 - TypeScript.
 - Tailwind CSS 4.
 - shadcn/ui e Radix UI para componentes base.
-- Zustand para estado global de autenticação mockada.
-- Zod para validação dos formulários.
-- MSW para simular endpoints de autenticação e agenda no ambiente de desenvolvimento.
-- Recharts para gráficos do dashboard.
-- Sonner para notificações.
-- Lucide React para ícones.
+- TanStack React Query para busca, cache e invalidação dos dados da API.
+- Zustand para o estado global da sessão autenticada.
+- Zod para validação de formulários e das respostas da API.
+- Recharts para os gráficos do dashboard.
+- Sonner para notificações e Lucide React para ícones.
+- MSW como mock opcional de desenvolvimento (desligado por padrão).
 
 ## Arquitetura Frontend
 
-O projeto usa uma organização feature-based. As rotas ficam em `src/app`, enquanto cada domínio da aplicação fica isolado em `src/features`. Componentes e utilitários reutilizáveis ficam em `src/shared`.
+Organização feature-based: as rotas ficam em `src/app`, cada domínio fica isolado em `src/features` (com `api/`, `schemas/`, `hooks/`, `components/` e um `index.ts` que expõe só o necessário), e o código reutilizável fica em `src/shared`. As páginas de `src/app` só compõem a feature correspondente, mantendo o roteamento separado da interface.
 
-### Estrutura Feature-Based Atual
+A comunicação com o backend segue um padrão único por feature: um módulo `api/` faz o `fetch`, valida a resposta com Zod (`shared/lib/parse-api-response.ts`) e devolve um resultado tipado `{ok, ...}`; os `hooks/` embrulham isso em React Query. Como o Next faz proxy de `/api/*` para a API, o cookie httpOnly de sessão viaja same-origin, sem CORS no navegador.
+
+### Estrutura Feature-Based
 
 ```text
 frontend/
-  public/                                  # Assets publicos servidos pelo Next.js
+  public/
     images/                                # Identidade visual do Organiza.IA
     screenshots/                           # Prints das telas usados neste README
 
   src/
     app/                                   # Rotas, layouts e entrypoints do Next.js
-      auth/                                # Area publica de autenticacao
-        forgot-password/                   # Fluxo publico de recuperacao de senha
-      (protected)/                         # Grupo de rotas protegidas
-        dashboard/                         # Rota protegida do dashboard
-        ai-chat/                           # Rota protegida do chat com IA
+      auth/                                # Área pública de autenticação
+        forgot-password/                   # Fluxo público de recuperação de senha
+      (protected)/                         # Grupo de rotas protegidas (agenda, dashboard, chat, cobrança)
+        dashboard/
+        ai-chat/
+        billing/
 
-    features/                              # Funcionalidades isoladas por dominio
-      auth/                                # Login, cadastro e sessao mockada
-        api/                               # Comunicacao com a camada mockada de auth
-        components/                        # Paginas, formularios e guards de autenticacao
-        lib/                               # Persistencia da sessao no navegador
-        mocks/                             # Simulacao dos endpoints de autenticacao
-        schemas/                           # Schemas Zod de login/cadastro
-        stores/                            # Store Zustand da sessao
-        types/                             # Tipos de usuario e sessao
-      forgot-password/                     # Fluxo de recuperacao de senha
-        components/                        # Cards de solicitar, validar, redefinir e sucesso
-      home/                                # Agenda diaria e timeline do usuario
-        api/                               # Comunicacao com a camada mockada da agenda
-        components/                        # Header, timeline, cards, dialog e formulario
-        constants/                         # Horarios, tons e constantes de layout
-        data/                              # Periodos e metricas iniciais mockadas
-        hooks/                             # useSchedule e orquestracao da agenda
-        lib/                               # Persistencia da agenda no navegador
-        mocks/                             # Simulacao dos endpoints da agenda
-        schemas/                           # Schemas Zod dos cards e horarios
-        types/                             # Tipos da agenda
-        utils/                             # Calculos de horario, posicao e ordenacao
-      dashboard/                           # Indicadores e graficos de produtividade
-        components/                        # Header, grid de metricas e graficos
-        data/                              # Dados ficticios de tokens, tarefas e interacoes
-      ai-chat/                             # Interface inicial de conversa com a IA
-        components/                        # Pagina de chat e skeleton
-      navigation/                          # Navegacao lateral das rotas protegidas
-        components/                        # AppSidebar
+    features/                              # Funcionalidades isoladas por domínio
+      auth/                                # Login, cadastro e sessão (store Zustand + API real)
+      forgot-password/                     # Recuperação de senha em etapas
+      home/                                # Agenda diária: timeline, cards, hooks e utils de horário
+      ai-chat/                             # Chat com IA: envio, histórico, tokens, abort
+      dashboard/                           # Métricas reais: api, hooks (React Query), schemas e gráficos
+      billing/                             # Saldo, extrato e recarga de tokens
+      navigation/                          # Sidebar das rotas protegidas
 
-    mocks/                                 # Infraestrutura global das simulacoes usadas pelas features
+    mocks/                                 # Infraestrutura do MSW (dev offline opcional)
 
-    lib/                                   # Espaco reservado para utilitarios globais
-
-    shared/                                # Codigo reutilizavel entre features
-      components/                          # Componentes compartilhados e base dos formularios
-        ui/                                # Componentes shadcn/ui usados no projeto
-      lib/                                 # Helpers e utilitarios compartilhados
-      mocks/                               # Espaco reservado para mocks compartilhados
+    shared/                                # Código reutilizável entre features
+      components/                          # Componentes compartilhados
+        ui/                                # Componentes shadcn/ui
+      lib/                                 # cn, parse-api-response e helpers
+      providers/                           # QueryProvider (React Query)
       styles/                              # Tokens de cor, tema e estilos globais
 ```
-
-Use `src/features/<nome-da-feature>` para novos fluxos de produto e exponha apenas o necessário pelo `index.ts` da feature. Essa regra evita acoplamento direto entre domínios e mantém as páginas de `src/app` pequenas, focadas apenas em rota e composição.
-
 
 ```mermaid
 flowchart LR
@@ -123,91 +96,93 @@ flowchart LR
   Forgot --> Request[Solicitar codigo]
   Forgot --> Verify[Validar codigo]
   Forgot --> Reset[Redefinir senha]
-  Forgot --> Success[Sucesso]
 
   Protegidas --> Guard[AuthGuard]
   Guard --> Sidebar[AppSidebar]
   Sidebar --> Home["/ - Agenda do dia"]
   Sidebar --> Dashboard["/dashboard"]
   Sidebar --> Chat["/ai-chat"]
+  Sidebar --> Billing["/billing"]
 
   Home --> Timeline[Timeline por periodos]
-  Home --> Cards[Cards de atividades]
-  Dashboard --> Metrics[Metricas mockadas]
-  Dashboard --> Charts[Graficos de produtividade]
-  Chat --> Messages[Mensagens simuladas]
-  Chat --> Assistant[Resposta mockada da IA]
+  Dashboard --> Metrics[Metricas reais - /api/metrics]
+  Chat --> Messages[Mensagens - /api/chat/messages]
+  Billing --> Tokens[Saldo e extrato - /api/billing]
 ```
 
 ### Decisões de Organização
 
-`src/app`: define as rotas, layouts e páginas do Next.js. As páginas apenas importam a feature correspondente, mantendo a regra de roteamento separada da regra de interface.
+`src/app`: define rotas, layouts e páginas do Next.js; as páginas só importam a feature correspondente.
 
-`src/features/auth`: concentra login, cadastro, validações, store com Zustand, tipos e mocks de autenticação.
+`src/features/auth`: login, cadastro, validações, store Zustand e a API real de autenticação.
 
-`src/features/forgot-password`: concentra o fluxo de recuperação de senha em etapas, separado do login para facilitar manutenção.
+`src/features/forgot-password`: o fluxo de recuperação de senha em etapas, separado do login.
 
-`src/features/home`: concentra a agenda diária, incluindo componentes da timeline, dados iniciais, hooks, validações, persistência mockada e handlers do MSW.
+`src/features/home`: a agenda diária — timeline, cards, hooks, validações e os utilitários de cálculo de horário/posição.
 
-`src/features/dashboard`: concentra cards, gráficos e dados fictícios de produtividade, mensagens, tokens e uso semanal.
+`src/features/ai-chat`: o chat — envio de mensagens com input bloqueado durante o processamento, histórico real, exibição dos tokens da resposta e botão de abortar.
 
-`src/features/ai-chat`: concentra a interface inicial de chat. O envio de mensagens e a resposta do assistente são simulados.
+`src/features/dashboard`: cards e gráficos de produtividade alimentados por `GET /api/metrics` via React Query, com skeleton e estado de erro.
 
-`src/features/navigation`: concentra a sidebar das rotas protegidas.
+`src/features/billing`: saldo, botões de recarga (renderizados a partir dos pacotes que a API informa) e histórico de consumo/recargas.
 
-`src/shared`: reúne componentes reutilizáveis, componentes de UI baseados em shadcn/ui, função `cn` e estilos globais.
+`src/features/navigation`: a sidebar das rotas protegidas.
 
-`src/mocks`: inicializa o MSW em desenvolvimento e agrega os handlers das features.
+`src/shared`: componentes reutilizáveis, base shadcn/ui, o `QueryProvider`, o helper `parse-api-response` e os estilos globais.
+
+`src/mocks`: inicializa o MSW **apenas** quando `NEXT_PUBLIC_API_MOCKING=enabled` (desenvolvimento offline); por padrão fica desligado e a aplicação usa a API real.
 
 ## Telas Desenvolvidas
 
 ### Login e Cadastro
 
-A tela de autenticação apresenta um painel visual com a identidade do Organiza.IA e um formulário alternável entre login e cadastro. Os formulários usam validação com Zod, feedback visual e sessão mockada salva em `localStorage`.
+Painel visual com a identidade do Organiza.IA e um formulário alternável entre login e cadastro, com validação Zod e feedback visual. A autenticação é real: a API seta um cookie httpOnly de sessão.
 
 ### Recuperação de Senha
 
-O fluxo de recuperação passa por solicitação de e-mail, verificação de código, redefinição de senha e tela de sucesso. A navegação é mockada para representar a experiência esperada sem depender de backend.
+Solicitação de e-mail, verificação de código, redefinição de senha e tela de sucesso — integrados ao envio real de código (capturado pelo Mailpit em desenvolvimento).
 
 ### Agenda do Dia
 
-A tela principal mostra a rotina do dia em períodos como manhã, almoço, tarde e noite. O usuário pode ajustar o intervalo visível do dia, adicionar novos cards, marcar tarefas como concluídas e remover cards. As alterações são persistidas no `localStorage` durante o desenvolvimento.
-
-### Dashboard
-
-O dashboard apresenta métricas fictícias de produtividade e uso da IA:
-
-- Mensagens trocadas.
-- Tokens consumidos.
-- Tarefas cumpridas.
-- Tempo de uso.
-- Gráfico de consumo semanal de tokens.
-- Gráficos de tarefas concluídas e interações diárias.
+A tela principal mostra a **rotina diária recorrente** em períodos (manhã, almoço, tarde, noite) — os mesmos blocos valem para todo dia, sem datas específicas. O usuário ajusta o intervalo visível do dia, adiciona cards, marca tarefas como concluídas e remove cards; tudo persistido no backend.
 
 ### Chat com IA
 
-A interface de chat simula uma conversa com o Organiza.IA. O usuário pode enviar mensagens, usar sugestões de prompt e visualizar uma resposta mockada. A integração real com LLM fica para uma etapa posterior.
+Conversa real com o agente: o input fica bloqueado durante o processamento (indicador de digitação + botão de abortar), o histórico é carregado da API ao abrir, cada resposta mostra os tokens consumidos, e quando o saldo esgota o chat exibe um aviso com link para recarregar e desabilita o input. O agente pode criar cards na agenda durante a conversa.
+
+### Dashboard
+
+Métricas reais de produtividade e uso da IA, vindas de `GET /api/metrics`:
+
+- Mensagens trocadas.
+- Tempo ativo (tempo de uso da IA).
+- Tokens consumidos.
+- Tarefas cumpridas.
+- Gráfico de consumo semanal de tokens.
+- Gráficos de tarefas concluídas/pendentes e interações diárias.
+
+### Cobrança por Tokens
+
+Saldo atual, botões de recarga (pacotes informados pela API) e histórico de débitos/recargas com o saldo resultante de cada movimentação.
 
 ## Fluxo do Usuário
 
 ```mermaid
 flowchart TD
   A[Usuário acessa /auth] --> B{Já possui conta?}
-  B -->|Sim| C[Login mockado]
-  B -->|Não| D[Cadastro mockado]
+  B -->|Sim| C[Login]
+  B -->|Não| D[Cadastro]
   C --> E[Agenda de hoje]
-  D --> E[Agenda de hoje]
+  D --> E
   A --> F[Esqueci minha senha]
-  F --> G[Solicita código]
-  G --> H[Valida código]
-  H --> I[Redefine senha]
-  I --> A
+  F --> G[Solicita código] --> H[Valida código] --> I[Redefine senha] --> A
   E --> J[Adicionar ou concluir cards do dia]
-  E --> K[Dashboard]
+  E --> K[Dashboard - métricas reais]
   E --> L[Chat com IA]
-  K --> E
-  L --> M[Resposta mockada do assistente]
+  E --> N[Cobrança - saldo e recarga]
+  L --> M[Resposta do agente + tokens debitados]
   M --> E
+  N --> E
 ```
 
 ## Prints das Telas
@@ -238,29 +213,31 @@ flowchart TD
 
 ## Como Executar Localmente
 
-Pré-requisito: Node.js 20.9 ou superior (exigido pelo Next.js 16). Se você usa [nvm](https://github.com/nvm-sh/nvm), rode `nvm use` na pasta `frontend` para selecionar a versão correta automaticamente (lida do arquivo `.nvmrc`). Com uma versão de Node mais antiga, `npm install` falha imediatamente com um erro `EBADENGINE`.
+O jeito mais simples de rodar tudo (frontend + API + banco + Mailpit) é pelo Docker Compose na raiz do Card_14 — veja o **README geral do projeto** (um nível acima). O frontend fica em `http://localhost:3000`.
 
-Instale as dependências:
+### Rodar só o frontend, sem Docker
+
+Pré-requisito: Node.js 20.9+ (exigido pelo Next.js 16). Com [nvm](https://github.com/nvm-sh/nvm), rode `nvm use` na pasta `frontend`. A API precisa estar acessível (por padrão o proxy aponta para `http://localhost:8001`, configurável por `API_PROXY_URL`).
 
 ```bash
+cp .env.example .env.local   # ajuste API_PROXY_URL se a API não estiver em localhost:8001
 npm install
-```
-
-Execute o ambiente de desenvolvimento:
-
-```bash
 npm run dev
 ```
 
-Acesse no navegador:
+Acesse `http://localhost:3000`. Para entrar, crie uma conta na tela de cadastro e use as credenciais no login.
 
-```text
-http://localhost:3000
+Para desenvolvimento **offline** (sem backend), suba com `NEXT_PUBLIC_API_MOCKING=enabled` no `.env.local`: o MSW assume os endpoints de auth e agenda com dados no `localStorage` (o chat, o dashboard e a cobrança dependem da API real).
+
+### Scripts
+
+```bash
+npm run dev        # ambiente de desenvolvimento (Turbopack)
+npm run build      # build de produção
+npm run lint       # ESLint
+npm run typecheck  # checagem de tipos (tsc --noEmit)
 ```
-
-Em desenvolvimento, o MSW é carregado automaticamente para simular os endpoints usados pela aplicação. Para entrar, crie uma conta pela tela de cadastro e use as mesmas credenciais no login. A sessão e os dados da agenda ficam salvos no `localStorage` do navegador.
-
 
 ## Resultados Obtidos
 
-A entrega constrói a base visual e estrutural do sistema final, com navegação funcional entre autenticação, agenda, dashboard e chat. A arquitetura separada por features facilita a evolução do projeto para etapas futuras, como autenticação real, persistência em backend e integração efetiva com uma LLM.
+A entrega integra toda a interface do sistema final à API real: autenticação, agenda, chat com agente inteligente, dashboard de métricas e cobrança por tokens, com dados persistidos no backend e cache/invalidação gerenciados pelo React Query. A arquitetura feature-based mantém cada domínio isolado e as páginas enxutas, e o padrão único de `api/ → schemas Zod → hooks` deixa a comunicação com o backend consistente e tipada de ponta a ponta.

@@ -1,17 +1,20 @@
 # Organiza.IA API
 
-Backend completo em FastAPI para o Organiza.IA, assistente de produtividade pessoal. É a segunda etapa do projeto final: implementa autenticação real, persistência em PostgreSQL e recuperação de senha por e-mail, substituindo os mocks (MSW) usados na Part 1 (frontend), cujo código está na pasta `Card_12-Pratica_Projeto_Final-Part1/frontend` deste repositório.
+Backend completo em FastAPI para o Organiza.IA, assistente de produtividade pessoal movido por IA. É a etapa final do projeto: sobre a autenticação, a persistência e a agenda entregues na Part 2 (Card_13), esta versão acrescenta o **chat com um agente inteligente** (via OpenRouter/OpenAI com function calling), o **dashboard de métricas** e o **sistema de cobrança por tokens**, fechando o MVP pedido no desafio.
 
 ## Descrição do Projeto
 
-A Part 1 entregou a base visual do Organiza.IA com autenticação e agenda simuladas no navegador (MSW + `localStorage`). Esta etapa entrega a API real que sustenta essas telas: cadastro, login, sessão, atualização de perfil, o fluxo completo de recuperação de senha com envio de código por e-mail e a persistência da agenda (dia visível e cards de evento por período do dia).
+A API sustenta todas as telas do frontend (Next.js) sem que ele precise conhecer o banco ou a LLM: cadastro, login, sessão, perfil, recuperação de senha por e-mail, a agenda diária (dia visível e cards de evento por período) e, agora, o chat com IA, as métricas de uso e o saldo/extrato de tokens.
 
-A API foi desenhada para encaixar exatamente no contrato que o frontend já espera (mesmo formato de resposta `{message, session}` usado pelos handlers do MSW), e o mecanismo de sessão foi escolhido para bater com o jeito que o frontend já está construído: ele não guarda nem reenvia token nenhum, só espera que o servidor "lembre" de quem está logado. Por isso a API expõe a sessão via **cookie httpOnly**, mantendo o JWT também no corpo da resposta para quem for testar via Postman, Insomnia ou pelo Swagger.
+O contrato de resposta segue o formato `{message, ...}` que o frontend já espera, e o mecanismo de sessão foi escolhido para bater com o jeito que o frontend está construído: ele não guarda nem reenvia token nenhum, só espera que o servidor "lembre" de quem está logado. Por isso a API expõe a sessão via **cookie httpOnly**, mantendo o JWT também no corpo da resposta para quem for testar via Postman, Insomnia ou pelo Swagger.
+
+A chave da LLM vive **somente no servidor** (`.env`), nunca no bundle do frontend: o navegador conversa com a IA exclusivamente através desta API, que valida saldo, conta tokens e aplica rate limit antes de chamar o provedor.
 
 ## Tecnologias Utilizadas
 
 - FastAPI.
 - PostgreSQL com SQLAlchemy 2.0 (mapeamento via `mapped_as_dataclass`) e Alembic para migrações.
+- httpx para o cliente HTTP assíncrono que fala com a LLM (OpenRouter/OpenAI-compatível).
 - JWT (PyJWT) para emissão e validação dos tokens de sessão.
 - Cookie httpOnly para a sessão consumida pelo frontend, com fallback por `Authorization: Bearer` para testes manuais.
 - Pydantic / Pydantic Settings para validação de entrada e saída e configuração via `.env`.
@@ -19,71 +22,101 @@ A API foi desenhada para encaixar exatamente no contrato que o frontend já espe
 - FastAPI-Mail para o envio do código de recuperação de senha.
 - pytest + pytest-cov para os testes automatizados.
 - Ruff para lint e formatação.
-- Docker e Docker Compose para subir API e banco juntos.
+- Docker e Docker Compose para subir API, banco, frontend e Mailpit juntos.
 
 ## Arquitetura do Backend
 
-O projeto segue uma separação simples por camadas: rotas finas em `routers/`, regras de autenticação e hashing isoladas em `security.py`, schemas de entrada/saída em `schemas.py` e o acesso ao banco centralizado em `database.py` / `models.py`. Cada router só conhece os schemas e as funções de `security.py`; nenhuma rota monta SQL ou manipula hash diretamente.
+O projeto segue uma separação simples por camadas: rotas finas em `routers/`, regras de negócio reutilizáveis extraídas para módulos de serviço (`schedule_service.py`, `billing_service.py`), o cliente da LLM isolado em `ai.py`, autenticação e hashing em `security.py`, schemas de entrada/saída em `schemas.py` e o acesso ao banco centralizado em `database.py` / `models.py`. Nenhum router monta SQL cru nem fala direto com a LLM.
 
 ```text
 backend/
   organiza_ia_api/
-    app.py                # cria o FastAPI, CORS, exception handlers e inclui os routers
+    app.py                # cria o FastAPI, CORS, middleware de tamanho, exception handlers e inclui os routers
     settings.py            # Settings (Pydantic Settings) lidas do .env
     database.py             # engine SQLAlchemy e get_session (dependency)
-    models.py                # User, PasswordResetToken, Schedule e ScheduleEvent (SQLAlchemy + dataclass)
+    models.py                # User, PasswordResetToken, Schedule, ScheduleEvent, ChatMessage, TokenTransaction
     schemas.py                 # schemas Pydantic de entrada/saída e validações
     security.py                 # hash de senha, JWT, extração do usuário autenticado
     mail.py                      # envio do código de recuperação via FastAPI-Mail
+    ai.py                         # cliente da LLM: system prompt, tools (function calling), fallback de modelos
+    schedule_service.py           # regras da agenda, compartilhadas entre o router e as ferramentas da IA
+    billing_service.py            # débito/recarga de tokens sob lock, com lançamento em token_transactions
     routers/
       auth.py                      # registro, login, sessão, logout
       password_reset.py            # solicitar/verificar/redefinir senha
       users.py                      # perfil do usuário autenticado
       schedule.py                   # dia visível e cards de evento da agenda
+      chat.py                       # envio/histórico de mensagens do chat com IA
+      metrics.py                    # métricas de uso do usuário (dashboard)
+      billing.py                    # saldo, extrato e recarga de tokens
 
-  migrations/                # migrações Alembic (3 revisões, detalhadas na seção Banco de Dados)
+  migrations/                # migrações Alembic (8 revisões, detalhadas na seção Banco de Dados)
   tests/                      # testes automatizados (pytest), banco SQLite em memória
   Dockerfile
   pyproject.toml
 
-docker-compose.yml            # sobe o Postgres e a API juntos
-.env / .env.example           # configuração usada pelo docker-compose
+docker-compose.yml            # sobe Postgres + backend + frontend + Mailpit
+.env / .env.example           # configuração usada pelo docker-compose (um nível acima, na raiz do Card_14)
 ```
 
 ### Decisões de Arquitetura
 
-**Sessão via cookie httpOnly, com Bearer como alternativa.** O frontend da Part 1 não tem nenhuma lógica de token: `auth-api.ts` chama `/api/auth/login` e só lê o campo `session` da resposta, sem guardar `access_token` em lugar nenhum. Para a API real funcionar com esse frontend sem precisar alterá-lo, `/login` e `/register` setam um cookie `httpOnly` com o JWT (que o navegador reenvia sozinho em `/session`, `/users/me` etc.), e `/logout` limpa esse cookie. A dependência `get_current_user` aceita o cookie **ou** um header `Authorization: Bearer <token>` — o header explícito tem prioridade quando os dois estão presentes, já que representa uma intenção clara de quem está chamando a API diretamente (Postman, Insomnia, Swagger).
+**Sessão via cookie httpOnly, com Bearer como alternativa.** O frontend não tem nenhuma lógica de token: `auth-api.ts` chama `/api/auth/login` e só lê o campo `session` da resposta, sem guardar `access_token` em lugar nenhum. Para a API funcionar com esse frontend sem alterá-lo, `/login` e `/register` setam um cookie `httpOnly` com o JWT (que o navegador reenvia sozinho em `/session`, `/users/me` etc.), e `/logout` limpa esse cookie. A dependência `get_current_user` aceita o cookie **ou** um header `Authorization: Bearer <token>` — o header explícito tem prioridade quando os dois estão presentes, já que representa uma intenção clara de quem está chamando a API diretamente (Postman, Insomnia, Swagger).
 
-**Contrato de erro compatível com o frontend.** As respostas de erro voltam como `{"message": "..."}` em vez do formato padrão do FastAPI (`{"detail": ...}`), via `exception_handler` em `app.py`. Isso é o mesmo formato que os handlers MSW do frontend já devolvem, então a troca do mock pela API real não exige nenhuma mudança em como o frontend lê erros. O handler é registrado em `starlette.exceptions.HTTPException` (não na subclasse `fastapi.HTTPException`): erros de roteamento como 404 de rota inexistente e 405 de método errado são levantados pelo Starlette diretamente na classe-mãe, e registrar só na subclasse os deixaria escapar no formato `{"detail": ...}`. Esses erros de roteamento também são traduzidos ("Rota não encontrada.", "Método não permitido."), mantendo o contrato 100% em português. Um handler genérico para `Exception` cobre qualquer falha não prevista (ex.: banco fora do ar) com a mesma mensagem genérica em JSON, e loga o erro real no servidor.
+**Contrato de erro compatível com o frontend.** As respostas de erro voltam como `{"message": "..."}` em vez do formato padrão do FastAPI (`{"detail": ...}`), via `exception_handler` em `app.py`. O handler é registrado em `starlette.exceptions.HTTPException` (não na subclasse `fastapi.HTTPException`): erros de roteamento como 404 de rota inexistente e 405 de método errado são levantados pelo Starlette diretamente na classe-mãe, e registrar só na subclasse os deixaria escapar no formato `{"detail": ...}`. Esses erros de roteamento também são traduzidos ("Rota não encontrada.", "Método não permitido."), mantendo o contrato 100% em português. Um handler genérico para `Exception` cobre qualquer falha não prevista (ex.: banco fora do ar) com a mesma mensagem genérica em JSON, e loga o erro real no servidor.
 
-**Segurança no fluxo de autenticação.** Senhas são hasheadas com Argon2 (`pwdlib`). Login e solicitação de recuperação de senha rodam um hash "morto" mesmo quando o e-mail não existe, para o tempo de resposta não revelar quais e-mails estão cadastrados (mitigação de timing attack / enumeração de contas). O código de recuperação de senha (6 dígitos) é hasheado no banco, expira em 15 minutos (configurável) e tem limite de 5 tentativas antes de ser invalidado, fechando a porta pra força bruta contra um código de 1 milhão de combinações.
+**Serviço de IA isolado e agnóstico de provedor (`ai.py`).** O cliente fala com qualquer endpoint compatível com a API de chat da OpenAI — por padrão o **OpenRouter**, configurável por `AI_BASE_URL`/`AI_MODEL`. O system prompt restringe o agente ao contexto de planejamento (fora disso ele responde que não tem acesso). `AI_MODEL` aceita uma **lista** de modelos separados por vírgula: como os modelos gratuitos do OpenRouter vivem rate-limited, cada um funciona como fallback do anterior. Falhas viram `{message}` em português: `503` sem chave configurada, `502` para timeout/erro do provedor.
 
-**Trocar a senha derruba todas as sessões.** O JWT carrega um claim `pwv` (password version) com a data da última troca de senha. Quando a senha muda — pelo perfil (`PATCH /api/users/me`) ou pelo fluxo de recuperação — todos os tokens emitidos antes deixam de validar, desconectando qualquer sessão aberta em outros navegadores/dispositivos. Quem trocou a senha pelo perfil recebe um cookie novo na mesma resposta e continua logado.
+**Agente com ferramentas (function calling).** A IA cria e consulta cards da agenda de verdade através das ferramentas `create_schedule_event` e `list_schedule_events`. O loop de tool-calling roda no servidor (máx. 3 rodadas, a última forçada a texto para não entrar em loop), os argumentos são validados pelos **mesmos schemas** do CRUD da agenda, os efeitos só são persistidos no commit final do envio, e não há fallback para outro modelo depois que uma ferramenta já rodou (repetir a conversa duplicaria as ações). Os tokens de todas as rodadas são somados no débito. A contagem de tokens **não é feita localmente**: o backend lê o campo `usage` (`prompt_tokens`/`completion_tokens`) que o OpenRouter devolve em cada resposta e apenas acumula esses valores — se o provedor não reportar `usage`, o custo daquela rodada cai para zero. A lógica da agenda foi extraída para `schedule_service.py`, compartilhada entre o router de agenda e as ferramentas.
 
-**Rate limit e higiene no fluxo de recuperação.** O `/forgot-password/request` aceita no máximo 3 solicitações por conta a cada 15 minutos — acima disso a resposta continua a mesma mensagem genérica (um 429 revelaria quais e-mails existem), mas nenhum código novo é emitido, impedindo tanto o spam na caixa de entrada da vítima quanto o "reset" do contador de tentativas via códigos novos. Cada solicitação nova invalida os códigos anteriores ainda ativos (um único código válido por vez) e apaga os tokens além do prazo de retenção (1 hora), então a tabela não cresce indefinidamente.
+**Cobrança centralizada e à prova de concorrência (`billing_service.py`).** Débito (chat) e recarga usam o mesmo serviço, que lê o saldo pela **coluna** sob `SELECT ... FOR UPDATE` e grava com `UPDATE` atômico — evitando o problema clássico de a linha travada devolver o objeto já carregado no identity map da sessão e um envio concorrente sobrescrever o débito de outro. No chat, a linha do usuário é travada logo no início do envio e só liberada no commit final: a checagem de saldo e o rate limit valem por toda a duração da chamada à LLM, então requisições concorrentes do mesmo usuário não furam os limites em paralelo. A mensagem do usuário, a resposta e os cards criados pela IA são persistidos na **mesma transação** — ou grava tudo, ou nada: qualquer falha faz rollback e não deixa mensagem órfã sem resposta. O endpoint do chat roda de forma síncrona (offload para a threadpool do FastAPI), para as chamadas bloqueantes ao banco e o lock durante a conversa não segurarem o event loop.
 
-**Limites de tamanho em toda entrada.** Todos os campos de texto têm teto de tamanho validado com mensagem em português (nome 120, e-mail 254, senha 128, título de card 100, `userId` 64, código com exatamente 6 dígitos), e um middleware rejeita com `413` qualquer corpo de requisição acima de 64 KB antes mesmo do JSON ser parseado — nenhum payload gigante malicioso chega ao Argon2 ou ao banco.
+**Segurança no fluxo de autenticação.** Senhas são hasheadas com Argon2 (`pwdlib`). Login e os endpoints de recuperação de senha rodam um hash "morto" mesmo quando o e-mail não existe **ou quando não há código pendente**, para o tempo de resposta não revelar quais e-mails estão cadastrados (mitigação de timing attack / enumeração). O código de recuperação (6 dígitos) é hasheado no banco, expira em 15 minutos (configurável) e tem limite de 5 tentativas antes de ser invalidado.
+
+**Trocar a senha derruba todas as sessões.** O JWT carrega um claim `pwv` (password version) com a data da última troca de senha. Quando a senha muda — pelo perfil (`PATCH /api/users/me`) ou pelo fluxo de recuperação — todos os tokens emitidos antes deixam de validar, desconectando qualquer sessão aberta. Quem trocou a senha pelo perfil recebe um cookie novo na mesma resposta e continua logado.
+
+**Rate limit e lockout em toda superfície cara.** O `/forgot-password/request` aceita no máximo 3 solicitações por conta a cada 15 minutos (acima disso, mesma mensagem genérica, sem emitir código novo). O `/api/chat/messages` aceita no máximo 10 mensagens por minuto por usuário (`429` acima disso), contadas na própria tabela `chat_messages` — cada mensagem dispara chamadas reais à LLM (custo/quota), então o teto barra rajadas de script sem atrapalhar quem digita. O `/api/auth/login` trava a conta por 15 minutos após 5 tentativas de senha erradas seguidas (`429`), contra força bruta; um login válido zera o contador.
+
+**Limites de tamanho em toda entrada.** Todos os campos de texto têm teto validado com mensagem em português (nome 120, e-mail 254, senha 128, título de card 100, mensagem de chat 2000, código com exatamente 6 dígitos), e um middleware rejeita com `413` qualquer corpo acima de 64 KB antes do parse do JSON.
+
+**Timestamps sempre em UTC no Python.** Todos os `created_at`/`updated_at` são gerados no Python como UTC naive (`models.utcnow`), sem depender do timezone do servidor Postgres — as migrações removem os defaults `now()` do banco para manter essa garantia. As métricas do dashboard reconvertem esses timestamps para o fuso do produto (`METRICS_TIMEZONE`, padrão `America/Sao_Paulo`) na hora de agrupar por dia/semana.
 
 **Corridas tratadas nos pontos de escrita.** Cadastro, troca de e-mail e criação lazy da agenda seguem o padrão "checa e insere"; se dois requests simultâneos passarem pela checagem, a unique constraint do banco barra o segundo e a API converte o erro em `409` (ou reusa a agenda existente) em vez de estourar `500`.
 
-**Pool de conexões resiliente.** O engine do SQLAlchemy usa `pool_pre_ping=True` (testa a conexão com um `SELECT 1` antes de entregá-la a um request, evitando que uma conexão morta — restart do Postgres, blip de rede — derrube uma requisição com 500) e `pool_recycle=1800` (recicla conexões com mais de 30 min, para não depender de nenhum idle timeout do lado do banco). O pool em si usa os defaults do SQLAlchemy (`QueuePool`, 5 conexões de base + 10 de overflow por processo), suficiente para o volume de um projeto pessoal.
+**Pool de conexões resiliente.** O engine usa `pool_pre_ping=True` (testa a conexão com um `SELECT 1` antes de entregá-la, evitando 500 por conexão morta) e `pool_recycle=1800` (recicla conexões com mais de 30 min).
 
 ## Banco de Dados
 
-PostgreSQL, com **quatro tabelas de domínio** criadas por três migrações Alembic: `2ce92a5c89ae` (`users` e `password_reset_tokens`), `b4e1f2a3c5d6` (`schedules` e `schedule_events`) e `a1f4c8d92b37` (coluna `users.password_changed_at`, índices nas FKs consultadas com frequência — `password_reset_tokens.user_id`/`expires_at` e `schedule_events.schedule_id` — e remoção dos defaults `now()` do banco: todos os timestamps passam a ser gerados no Python, sempre em UTC, para não depender do timezone do servidor Postgres).
+PostgreSQL, com **seis tabelas de domínio**, criadas e evoluídas por oito migrações Alembic:
 
-Além dessas quatro, o banco tem uma **quinta tabela**, `alembic_version`, criada e mantida pelo próprio Alembic: guarda uma única linha com a revisão de migração atualmente aplicada (é assim que o `alembic upgrade head` sabe de onde continuar). Ela não aparece no diagrama abaixo por ser infraestrutura de versionamento, não parte do domínio do produto.
+| Revisão | O que cria |
+|---|---|
+| `2ce92a5c89ae` | `users` e `password_reset_tokens` |
+| `b4e1f2a3c5d6` | `schedules` e `schedule_events` |
+| `a1f4c8d92b37` | `users.password_changed_at`, índices nas FKs e remoção dos defaults `now()` (timestamps passam a ser UTC gerado no Python) |
+| `d8a2b5c4e7f1` | `chat_messages` |
+| `e5f6a7b8c9d0` | `users.token_balance` (saldo inicial 10.000) e `token_transactions` |
+| `f1a2b3c4d5e6` | remove os defaults `now()` de `chat_messages`/`token_transactions` (mantém a convenção UTC das demais tabelas) |
+| `c3d4e5f6a7b8` | `users.failed_login_attempts` e `users.login_locked_until` (lockout de login) |
+| `d4e5f6a7b8c9` | `schedule_events.completed_at` (data de conclusão, usada nas métricas semanais) |
+
+Há ainda uma tabela `alembic_version`, criada e mantida pelo próprio Alembic (guarda a revisão aplicada), fora do diagrama por ser infraestrutura de versionamento.
 
 ```mermaid
 erDiagram
   users ||--o{ password_reset_tokens : possui
   users ||--|| schedules : possui
   schedules ||--o{ schedule_events : possui
+  users ||--o{ chat_messages : possui
+  users ||--o{ token_transactions : possui
   users {
     uuid id PK
     string name
     string email UK
     string password_hash
+    int token_balance
+    int failed_login_attempts
+    datetime login_locked_until
     datetime password_changed_at
     datetime created_at
     datetime updated_at
@@ -114,22 +147,40 @@ erDiagram
     int end_minutes
     string tone
     bool completed
+    datetime completed_at
+    datetime created_at
+  }
+  chat_messages {
+    uuid id PK
+    uuid user_id FK
+    string role
+    string content
+    int input_tokens
+    int output_tokens
+    datetime created_at
+  }
+  token_transactions {
+    uuid id PK
+    uuid user_id FK
+    string type
+    int amount
+    int balance_after
     datetime created_at
   }
 ```
 
-- `users.email` é único; o e-mail é normalizado (lowercase) antes de salvar ou buscar, evitando duplicidade por diferença de caixa.
-- `password_reset_tokens` guarda só o **hash** do código de 6 dígitos, nunca o código em texto puro. `used_at` marca o token como consumido (sucesso, estouro de tentativas ou substituição por um código mais novo) e `attempts` é incrementado a cada código errado. Tokens além do prazo de retenção (1 hora) são apagados automaticamente a cada nova solicitação.
-- `users.password_changed_at` registra a última troca de senha; o JWT carrega esse valor no claim `pwv` e tokens emitidos antes da troca são rejeitados (toda sessão aberta cai quando a senha muda).
-- `schedules` tem uma relação 1:1 com `users` (`user_id` é `UNIQUE`): cada usuário tem uma única agenda, criada sob demanda (lazy) no primeiro acesso a `GET /api/schedule`. Guarda só o intervalo do dia visível (`day_range_start_minutes`/`day_range_end_minutes`, em minutos desde 00:00).
-- `schedule_events` tem uma relação 1:N com `schedules`: cada card de evento pertence a uma agenda e carrega seu próprio horário (`start_minutes`/`end_minutes`), o período do dia em que cai (`period_id`: manhã/almoço/tarde/noite, calculado no backend a partir do horário) e o estado de conclusão (`completed`).
-- Não há tabela de organizações nem de papéis/permissões: o tema do Organiza.IA é um assistente pessoal de uso individual, não uma ferramenta multi-tenant, então esse recorte do desafio (explicitamente opcional "caso necessário para o tema escolhido") não se aplica aqui. O "gerenciamento de usuários" do desafio se resolve, nesse escopo, pelo próprio ciclo de vida da conta: cadastro (`/register`) e autogestão do perfil (`GET`/`PATCH /api/users/me`) — não existe um papel de administrador nem listagem de outros usuários, porque não há hierarquia entre contas no domínio do produto.
+- `users.email` é único; o e-mail é normalizado (lowercase) antes de salvar ou buscar. `users.token_balance` guarda o saldo de tokens (inicial 10.000), debitado a cada interação com a IA e recarregado pelos pacotes de cobrança.
+- `password_reset_tokens` guarda só o **hash** do código de 6 dígitos. `used_at` marca o token como consumido e `attempts` conta os erros; tokens além do prazo de retenção (1 hora) são apagados a cada nova solicitação.
+- `schedules` tem relação 1:1 com `users` (`user_id` é `UNIQUE`), criada sob demanda no primeiro acesso; `schedule_events` tem relação 1:N com `schedules`, com o período do dia (`period_id`) calculado no backend a partir do horário.
+- `chat_messages` guarda cada mensagem do chat (papel `user`/`assistant`, conteúdo e os tokens de entrada/saída reais da interação); é a base do histórico, do rate limit e das métricas.
+- `token_transactions` é o extrato de cobrança: cada linha é um `debit` (consumo no chat) ou `recharge` (pacote), com o `balance_after` resultante — o saldo do usuário é sempre reconstruível somando o extrato.
+- Não há tabela de organizações nem de papéis/permissões: o Organiza.IA é um assistente pessoal de uso individual, não uma ferramenta multi-tenant. O "gerenciamento de usuários" se resolve pelo ciclo de vida da conta (cadastro + autogestão do perfil), sem administrador nem hierarquia entre contas.
 
 ## Funcionalidades e Endpoints
 
 | Método | Rota | Descrição | Autenticação |
 |---|---|---|---|
-| POST | `/api/auth/register` | Cria a conta, já loga (seta cookie + retorna `access_token`) | - |
+| POST | `/api/auth/register` | Cria a conta, já loga (cookie + `access_token`) | - |
 | POST | `/api/auth/login` | Autentica e seta a sessão | - |
 | GET | `/api/auth/session` | Retorna a sessão atual (`null` se não autenticado) | opcional |
 | POST | `/api/auth/logout` | Limpa o cookie de sessão | - |
@@ -137,12 +188,17 @@ erDiagram
 | POST | `/api/auth/forgot-password/verify` | Valida o código antes de redefinir a senha | - |
 | POST | `/api/auth/forgot-password/reset` | Redefine a senha usando o código válido | - |
 | GET | `/api/users/me` | Retorna os dados do usuário autenticado | obrigatória |
-| PATCH | `/api/users/me` | Atualiza nome, e-mail e/ou senha do usuário autenticado | obrigatória |
-| GET | `/api/schedule` | Retorna a agenda do usuário (intervalo do dia + cards por período), criando-a se ainda não existir | obrigatória |
-| PATCH | `/api/schedule/day-range` | Atualiza o intervalo do dia visível na agenda | obrigatória |
-| POST | `/api/schedule/events` | Cria um card de evento (calcula o período do dia automaticamente pelo horário) | obrigatória |
+| PATCH | `/api/users/me` | Atualiza nome, e-mail e/ou senha | obrigatória |
+| GET | `/api/schedule` | Retorna a agenda do usuário (criando-a se não existir) | obrigatória |
+| PATCH | `/api/schedule/day-range` | Atualiza o intervalo do dia visível | obrigatória |
+| POST | `/api/schedule/events` | Cria um card de evento (período calculado pelo horário) | obrigatória |
 | DELETE | `/api/schedule/events/{event_id}` | Remove um card de evento | obrigatória |
 | PATCH | `/api/schedule/events/{event_id}/completed` | Alterna o status de concluído do card | obrigatória |
+| POST | `/api/chat/messages` | Envia uma mensagem, chama a IA, persiste o par e debita os tokens | obrigatória |
+| GET | `/api/chat/messages` | Histórico paginado (`limit`/`offset`) do chat | obrigatória |
+| GET | `/api/metrics` | Métricas de uso do usuário (dashboard) | obrigatória |
+| GET | `/api/billing` | Saldo, pacotes de recarga e extrato paginado | obrigatória |
+| POST | `/api/billing/recharge` | Recarrega o saldo com um pacote válido (1.000 / 5.000 / 10.000) | obrigatória |
 
 ### Fluxo de cadastro e login
 
@@ -163,27 +219,22 @@ flowchart TD
   K -->|válida| F
 ```
 
-### Fluxo da agenda
+### Fluxo do chat com IA e cobrança
 
 ```mermaid
 flowchart TD
-  A[GET /api/schedule] --> B{Usuário já tem agenda?}
-  B -->|não| C[Cria agenda com intervalo padrão 06:00-22:00]
-  B -->|sim| D[Usa agenda existente]
-  C --> D
-  D --> E[Retorna dayRange + eventos agrupados por período]
-
-  F[POST /schedule/events] --> G{Horário dentro do dayRange?}
-  G -->|não| H[400 Bad Request]
-  G -->|sim| I{"Cai em algum período? (manhã, almoço, tarde, noite)"}
-  I -->|não| H
-  I -->|sim| J[Evento criado, vinculado à agenda do usuário]
-
-  K[PATCH /day-range] --> L[Atualiza início/fim do dia visível]
-  M[PATCH /events/id/completed] --> N[Alterna completed do evento]
-  O[DELETE /events/id] --> P{Evento pertence à agenda do usuário?}
-  P -->|não| Q[404 Not Found]
-  P -->|sim| R[Remove o evento]
+  A[POST /api/chat/messages] --> B{Saldo de tokens > 0?}
+  B -->|não| C[402 Payment Required]
+  B -->|sim| D{Passou do rate limit 10/min?}
+  D -->|sim| E[429 Too Many Requests]
+  D -->|não| F[Registra a mensagem do usuário - flush, sem commit]
+  F --> G[Chama a LLM com histórico + ferramentas da agenda]
+  G -->|falha/timeout| H[Rollback de tudo, 502/503]
+  G -->|tool call| I[Cria/consulta cards via schedule_service]
+  I --> G
+  G -->|resposta em texto| J[Soma tokens de todas as rodadas]
+  J --> K[Debita tokens sob lock + grava resposta e cards no mesmo commit]
+  K --> L[Retorna par de mensagens + saldo + scheduleUpdated]
 ```
 
 ### Fluxo de recuperação de senha
@@ -203,18 +254,17 @@ flowchart TD
   J --> K[Senha atualizada, token consumido e sessões antigas derrubadas]
 ```
 
-Todas as entradas são validadas com Pydantic (formato de e-mail, senha entre 6 e 128 caracteres, confirmação de senha igual à senha, código com exatamente 6 dígitos numéricos) e a API nunca devolve a senha ou o hash dela em nenhuma resposta.
+Todas as entradas são validadas com Pydantic e a API nunca devolve a senha ou o hash dela em nenhuma resposta.
 
 ## Como Testar
 
-A forma mais rápida é pelo **Swagger UI**, em `http://localhost:8001/docs` (assumindo a porta mapeada no `docker-compose.yml`):
+A forma mais rápida é pelo **Swagger UI**, em `http://localhost:8001/docs` (porta mapeada no `docker-compose.yml`):
 
 1. Abra `POST /api/auth/register` (ou `/login`), clique em "Try it out", preencha o corpo e execute.
-2. A resposta traz `access_token` no corpo. Clique no cadeado "Authorize" no topo da página e cole o token (sem prefixo `Bearer`) — o Swagger já preenche o header sozinho a partir daí.
-3. Repare também que, como a chamada do passo 1 já foi feita pelo próprio navegador, o cookie httpOnly da sessão já foi setado: as rotas protegidas (`/api/users/me`) funcionam mesmo sem usar o "Authorize", testando direto pelo "Try it out".
-4. Use `GET /api/users/me`, `PATCH /api/users/me`, as rotas de `/api/auth/forgot-password` e as rotas de `/api/schedule` normalmente a partir daí.
+2. A resposta traz `access_token` no corpo. Clique no cadeado "Authorize" no topo e cole o token (sem prefixo `Bearer`) — o Swagger preenche o header a partir daí. Como a chamada do passo 1 já foi feita pelo navegador, o cookie httpOnly da sessão também já foi setado, então as rotas protegidas funcionam mesmo sem o "Authorize".
+3. Para testar o chat de ponta a ponta, configure uma `AI_API_KEY` válida no `.env` (o `POST /api/chat/messages` retorna `503` sem chave). Sem chave, todo o resto (auth, agenda, cobrança via `/recharge`, métricas) funciona normalmente.
 
-Também dá pra testar com Insomnia/Postman, com o mesmo fluxo (chamar `/login`, copiar `access_token`, usar como Bearer nas rotas protegidas).
+Também dá para testar com Insomnia/Postman (chamar `/login`, copiar `access_token`, usar como Bearer). O fluxo completo — registro, agenda, chat, cobrança e recuperação de senha — pode ser percorrido inteiramente pelo Swagger.
 
 ### Testes automatizados
 
@@ -224,48 +274,35 @@ docker compose exec backend pytest -v
 docker compose exec backend pytest --cov=organiza_ia_api
 ```
 
-92 testes, com **100% de cobertura de linha** (`pytest --cov=organiza_ia_api`), cobrindo registro, login (sucesso e falha), sessão via cookie e via Bearer, logout, atualização de perfil (incluindo troca de e-mail com sucesso, conflito de e-mail e validação de senha/confirmação), o fluxo inteiro de recuperação de senha (código certo, errado, e-mail desconhecido, reuso bloqueado, limite de tentativas, rate limit de solicitações, invalidação do código anterior e limpeza de tokens antigos), a derrubada de sessões após troca/reset de senha, a agenda (criação lazy, validação de horário fora do intervalo do dia, cálculo de período, conclusão e remoção de eventos), corridas de escrita simuladas (cadastro/e-mail duplicado e criação concorrente da agenda, incluindo a variante em que a transação vencedora sofre rollback e o erro precisa virar o 500 genérico), limites de tamanho de entrada (nome, e-mail, senha, corpo de requisição acima de 64 KB), tradução das mensagens de validação, o contrato `{"message": ...}` também para erros de roteamento (404 de rota inexistente, 405 de método errado) e para exceções não previstas (500 genérico), e casos de token inválido (JWT malformado, `sub` que não é UUID, token válido para usuário inexistente). As mensagens de erro são comparadas literalmente (não só o status code), para o teste falhar se a mensagem certa vier associada ao motivo errado. Os testes rodam contra um banco SQLite em memória (substituído via dependency override) e não exigem `.env` nem Postgres — basta `pytest`.
+165 testes, com **cobertura de linha em torno de 99%**, cobrindo auth (registro, login com sucesso e falha, lockout após tentativas erradas, sessão via cookie e via Bearer, logout), perfil, o fluxo inteiro de recuperação de senha (código certo/errado, e-mail desconhecido, reuso bloqueado, limite de tentativas, rate limit, invalidação e limpeza de tokens), a derrubada de sessões após troca/reset de senha, a agenda (criação lazy, validação de horário, período, conclusão, remoção e cards fora do intervalo do dia), o chat com a LLM **mockada** (persistência do par, histórico paginado, contagem de tokens, rate limit, falha da LLM que não persiste nada, isolamento por usuário), as **ferramentas da IA** (tool-calling, criação de card, argumentos inválidos, ferramenta desconhecida, fallback de modelos), as **métricas** (contagem, tempo ativo por janelas, semana corrente vs. anterior, fallback de fuso, isolamento), a **cobrança** (saldo inicial, débito, bloqueio por saldo zero, recarga válida/inválida, extrato, isolamento), corridas de escrita simuladas, limites de tamanho de entrada (inclusive corpo sem `Content-Length`), a tradução das mensagens de validação e o contrato `{"message": ...}` para erros de roteamento e exceções não previstas. As mensagens de erro são comparadas literalmente. Os testes rodam contra um banco SQLite em memória (via dependency override) e não exigem `.env` nem Postgres — basta `pytest`.
 
 ## Como Executar Localmente
 
-### Pré-requisitos
+### Com Docker (recomendado)
 
-- Docker e Docker Compose.
+Todo o ambiente (Postgres + API + frontend + Mailpit) sobe pela raiz do Card_14 — veja o **README geral do projeto** (um nível acima desta pasta) para o passo a passo completo. Em resumo, a partir da raiz do Card_14:
 
-### Passo a passo
+```bash
+cp .env.example .env   # ajuste SECRET_KEY e, se for testar o chat, AI_API_KEY
+docker compose up -d --build
+```
 
-1. Copie o arquivo de exemplo de variáveis de ambiente (na raiz do `Card_13-Pratica_Projeto-Final-Part2/`, um nível acima desta pasta):
+O serviço `backend` espera o Postgres ficar saudável e roda as migrações do Alembic automaticamente antes de subir o servidor (`alembic upgrade head && uvicorn ...`). A API fica em `http://localhost:8001` e o Swagger em `http://localhost:8001/docs`.
 
-   ```bash
-   cp .env.example .env
-   ```
+### Só o backend, sem Docker
 
-   Ajuste pelo menos o `SECRET_KEY` para uma chave própria. As variáveis de e-mail (`MAIL_*`) já vêm com `MAIL_SUPPRESS_SEND=True`, então o envio é simulado por padrão — não é preciso configurar um servidor SMTP real só para testar a API.
-
-2. Suba o banco e a API:
-
-   ```bash
-   docker compose up -d --build
-   ```
-
-   O serviço `backend` espera o Postgres ficar saudável e roda as migrações do Alembic automaticamente antes de subir o servidor (`alembic upgrade head && uvicorn ...`).
-
-3. Acesse:
-
-   ```text
-   http://localhost:8001/docs
-   ```
-
-Para rodar **o servidor** sem Docker (Postgres já disponível na máquina), instale as dependências com Poetry a partir desta pasta (`backend/`) e copie o `.env.example` para um `.env` **dentro de `backend/`** (o `Settings` do projeto lê o `.env` relativo à pasta de onde o comando é executado). Os **testes** não precisam de `.env` nem de Postgres — `poetry run pytest` funciona direto:
+Com um Postgres já disponível na máquina, a partir desta pasta (`backend/`):
 
 ```bash
 cd backend
 poetry install
-cp ../.env.example .env   # edite o DATABASE_URL se o Postgres não estiver em localhost:5432
+cp ../.env.example .env   # ajuste DATABASE_URL se o Postgres não estiver em localhost:5432
 poetry run alembic upgrade head
 poetry run task run
 ```
 
+Os **testes** não precisam de `.env` nem de Postgres — `poetry run pytest` (ou `poetry run task test`) funciona direto.
+
 ## Resultados Obtidos
 
-A API cobre as funcionalidades obrigatórias do desafio — cadastro, login com JWT, recuperação de senha por e-mail e atualização de perfil — com persistência real em PostgreSQL, validação completa via Pydantic, senha hasheada com Argon2 e proteções extras (anti-enumeração de e-mail, anti-força-bruta e rate limit no código de recuperação, derrubada de sessões após troca de senha, limites de tamanho em todas as entradas e no corpo da requisição). Além disso, persiste a agenda (intervalo do dia e cards de evento por período) que na Part 1 vivia só no `localStorage` via mock. O contrato de resposta foi desenhado para encaixar no frontend da Part 1 sem exigir mudanças nele. Todos os endpoints foram testados manualmente (via Swagger/curl) e por uma suíte de 92 testes automatizados com 100% de cobertura de linha, ambos documentados acima.
+A API entrega o MVP completo do desafio: autenticação com JWT, recuperação de senha por e-mail, agenda persistida, **chat com agente inteligente** (com function calling que age na agenda do usuário), **dashboard de métricas** e **cobrança por tokens** (saldo, extrato e recarga) — tudo com persistência real em PostgreSQL, validação via Pydantic, senha Argon2, débito de tokens à prova de concorrência, rate limit no chat e no reset de senha, lockout de login e proteções contra enumeração de contas e força bruta. A chave da LLM fica só no servidor. Todos os endpoints foram testados manualmente (via Swagger/curl) e por uma suíte de 165 testes automatizados com cobertura de linha em torno de 99%.
