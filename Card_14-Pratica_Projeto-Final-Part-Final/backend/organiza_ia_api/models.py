@@ -6,6 +6,8 @@ from sqlalchemy.orm import Mapped, mapped_column, registry
 
 table_registry = registry()
 
+INITIAL_TOKEN_BALANCE = 10_000
+
 
 def utcnow() -> datetime:
     # UTC naive gerado no Python: os timestamps não dependem do timezone
@@ -26,6 +28,13 @@ class User:
     # Tokens JWT emitidos antes dessa data são rejeitados: trocar a senha
     # derruba todas as sessões abertas.
     password_changed_at: Mapped[datetime | None] = mapped_column(
+        init=False, default=None
+    )
+    token_balance: Mapped[int] = mapped_column(
+        init=False, default=INITIAL_TOKEN_BALANCE
+    )
+    failed_login_attempts: Mapped[int] = mapped_column(init=False, default=0)
+    login_locked_until: Mapped[datetime | None] = mapped_column(
         init=False, default=None
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -72,6 +81,22 @@ class Schedule:
 
 
 @table_registry.mapped_as_dataclass
+class TokenTransaction:
+    __tablename__ = 'token_transactions'
+
+    user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id'), index=True)
+    type: Mapped[str]
+    amount: Mapped[int]
+    balance_after: Mapped[int]
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, insert_default=utcnow, index=True
+    )
+
+
+@table_registry.mapped_as_dataclass
 class ChatMessage:
     __tablename__ = 'chat_messages'
 
@@ -106,4 +131,7 @@ class ScheduleEvent:
     )
     created_at: Mapped[datetime] = mapped_column(
         init=False, insert_default=utcnow
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        init=False, default=None
     )

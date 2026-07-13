@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,6 +35,10 @@ class Settings(BaseSettings):
     )
     AI_MAX_OUTPUT_TOKENS: int = 512
     AI_TIMEOUT_SECONDS: float = 30.0
+    AI_TOTAL_TIMEOUT_SECONDS: float = 45.0
+
+    TOKEN_WEEKLY_LIMIT: int = Field(default=100_000, gt=0)
+    METRICS_TIMEZONE: str = 'America/Sao_Paulo'
 
     MAIL_USERNAME: str = 'organiza-ia@example.com'
     MAIL_PASSWORD: str = ''

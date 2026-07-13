@@ -67,6 +67,22 @@ def test_rejects_request_body_larger_than_max(client):
     )
 
 
+def test_rejects_oversized_body_without_content_length_header(client):
+    def stream():
+        yield b'x' * (MAX_REQUEST_BODY_BYTES + 1)
+
+    response = client.post(
+        '/api/auth/login',
+        content=stream(),
+        headers={'Content-Type': 'application/json'},
+    )
+
+    assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+    assert response.json()['message'] == (
+        'O corpo da requisição excede o tamanho máximo permitido.'
+    )
+
+
 # Erros gerados pelo próprio Pydantic (campo faltando, tipo errado, e-mail
 # inválido...) vêm em inglês; o exception handler precisa traduzi-los para
 # o contrato de erro continuar 100% em português.

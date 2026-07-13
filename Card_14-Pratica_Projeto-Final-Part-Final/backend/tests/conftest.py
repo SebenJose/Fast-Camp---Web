@@ -14,9 +14,11 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
+from organiza_ia_api import ai  # noqa: E402
 from organiza_ia_api.app import app  # noqa: E402
 from organiza_ia_api.database import get_session  # noqa: E402
 from organiza_ia_api.models import table_registry  # noqa: E402
+from organiza_ia_api.routers import chat  # noqa: E402
 
 
 @pytest.fixture
@@ -45,6 +47,29 @@ def client(session: Session) -> Iterator[TestClient]:
         yield test_client
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def make_fake_reply(monkeypatch):
+    def _install(
+        input_tokens: int,
+        output_tokens: int,
+        content: str = 'Resposta da IA.',
+    ) -> list[list[dict[str, Any]]]:
+        calls: list[list[dict[str, Any]]] = []
+
+        async def _generate_reply(history, execute_tool=None):
+            calls.append(history)
+            return ai.AiReply(
+                content=content,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+
+        monkeypatch.setattr(chat.ai, 'generate_reply', _generate_reply)
+        return calls
+
+    return _install
 
 
 @pytest.fixture

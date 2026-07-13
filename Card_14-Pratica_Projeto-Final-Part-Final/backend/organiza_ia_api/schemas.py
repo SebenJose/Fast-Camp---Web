@@ -324,6 +324,10 @@ class SendChatMessageRequest(BaseModel):
         return stripped
 
 
+def utc_isoformat(moment: datetime) -> str:
+    return f'{moment.isoformat()}Z'
+
+
 class ChatMessagePublic(BaseModel):
     id: str
     role: str
@@ -336,3 +340,55 @@ class ChatMessagePublic(BaseModel):
 class ChatMessagesResponse(BaseModel):
     message: str | None = None
     messages: list[ChatMessagePublic] = Field(default_factory=list)
+    balance: int | None = None
+    scheduleUpdated: bool = False
+
+
+class TokenTransactionPublic(BaseModel):
+    id: str
+    type: str
+    amount: int
+    balanceAfter: int
+    createdAt: str
+
+
+class BillingResponse(BaseModel):
+    message: str | None = None
+    balance: int | None = None
+    packages: list[int] = Field(default_factory=list)
+    transactions: list[TokenTransactionPublic] = Field(default_factory=list)
+
+
+class RechargeRequest(BaseModel):
+    amount: int
+
+
+class WeeklyTokensPublic(BaseModel):
+    used: int
+    limit: int
+
+
+class WeeklyTaskPoint(BaseModel):
+    day: str
+    completed: int
+    pending: int
+
+
+class DailyInteractionPoint(BaseModel):
+    day: str
+    interactions: int
+
+
+class MetricsPublic(BaseModel):
+    totalMessages: int
+    totalTokens: int
+    completedTasks: int
+    aiTimeMinutes: int
+    weeklyTokens: WeeklyTokensPublic
+    weeklyTasks: list[WeeklyTaskPoint]
+    dailyInteractions: list[DailyInteractionPoint]
+
+
+class MetricsResponse(BaseModel):
+    message: str | None = None
+    metrics: MetricsPublic | None = None

@@ -10,7 +10,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from organiza_ia_api.routers import (
     auth,
+    billing,
     chat,
+    metrics,
     password_reset,
     schedule,
     users,
@@ -35,24 +37,31 @@ app.add_middleware(
 )
 
 
+_BODY_TOO_LARGE_RESPONSE = JSONResponse(
+    status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+    content={
+        'message': 'O corpo da requisição excede o tamanho máximo '
+        'permitido.'
+    },
+)
+
+
 @app.middleware('http')
 async def limit_request_body_size(
     request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:
     content_length = request.headers.get('content-length')
 
-    if (
-        content_length
-        and content_length.isdigit()
-        and int(content_length) > MAX_REQUEST_BODY_BYTES
-    ):
-        return JSONResponse(
-            status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
-            content={
-                'message': 'O corpo da requisição excede o tamanho máximo '
-                'permitido.'
-            },
-        )
+    if content_length and content_length.isdigit():
+        if int(content_length) > MAX_REQUEST_BODY_BYTES:
+            return _BODY_TOO_LARGE_RESPONSE
+    else:
+        body = bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > MAX_REQUEST_BODY_BYTES:
+                return _BODY_TOO_LARGE_RESPONSE
+        request._body = bytes(body)
 
     return await call_next(request)
 
@@ -130,7 +139,9 @@ async def unhandled_exception_handler(
 
 
 app.include_router(auth.router)
+app.include_router(billing.router)
 app.include_router(chat.router)
+app.include_router(metrics.router)
 app.include_router(password_reset.router)
 app.include_router(users.router)
 app.include_router(schedule.router)
