@@ -3,6 +3,7 @@
 import {
   BotMessageSquare,
   CalendarDays,
+  Coins,
   LayoutDashboard,
   LogIn,
   LogOut,
@@ -39,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "home",      label: "Agenda",      href: "/",         icon: CalendarDays    },
   { id: "dashboard", label: "Dashboard",   href: "/dashboard", icon: LayoutDashboard },
   { id: "ai-chat",   label: "Chat com IA", href: "/ai-chat",   icon: BotMessageSquare },
+  { id: "billing",   label: "Tokens",      href: "/billing",   icon: Coins           },
 ];
 
 export function AppSidebar() {
