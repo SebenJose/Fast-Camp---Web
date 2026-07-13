@@ -1,5 +1,6 @@
 from http import HTTPStatus
 
+from organiza_ia_api.routers.auth import MAX_LOGIN_ATTEMPTS
 from organiza_ia_api.schemas import (
     MAX_EMAIL_LENGTH,
     MAX_NAME_LENGTH,
@@ -182,6 +183,48 @@ def test_login_unknown_email(client):
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert response.json()['message'] == 'E-mail ou senha inválidos.'
+
+
+def test_login_locks_after_too_many_failed_attempts(client, registered_user):
+    for _ in range(MAX_LOGIN_ATTEMPTS):
+        response = client.post(
+            '/api/auth/login',
+            json={
+                'email': registered_user['payload']['email'],
+                'password': 'senha-errada',
+            },
+        )
+        assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+    response = client.post(
+        '/api/auth/login',
+        json={
+            'email': registered_user['payload']['email'],
+            'password': registered_user['payload']['password'],
+        },
+    )
+
+    assert response.status_code == HTTPStatus.TOO_MANY_REQUESTS
+
+
+def test_login_success_resets_failed_attempts(client, registered_user):
+    client.post(
+        '/api/auth/login',
+        json={
+            'email': registered_user['payload']['email'],
+            'password': 'senha-errada',
+        },
+    )
+
+    response = client.post(
+        '/api/auth/login',
+        json={
+            'email': registered_user['payload']['email'],
+            'password': registered_user['payload']['password'],
+        },
+    )
+
+    assert response.status_code == HTTPStatus.OK
 
 
 def test_session_via_cookie(client, registered_user):

@@ -1,7 +1,6 @@
-import {
-  forgotPasswordApiResponseSchema,
-  type ForgotPasswordApiResponse,
-} from "../schemas/forgot-password-schemas";
+import { parseApiResponse } from "@/shared/lib/parse-api-response";
+
+import { forgotPasswordApiResponseSchema } from "../schemas/forgot-password-schemas";
 
 export type ForgotPasswordActionResult =
   | {
@@ -22,20 +21,6 @@ export type ForgotPasswordResetPayload = {
 
 const FORGOT_PASSWORD_API_BASE_URL = "/api/auth/forgot-password";
 
-async function readForgotPasswordApiResponse(
-  response: Response,
-): Promise<ForgotPasswordApiResponse> {
-  try {
-    const parsedResponse = forgotPasswordApiResponseSchema.safeParse(
-      await response.json(),
-    );
-
-    return parsedResponse.success ? parsedResponse.data : {};
-  } catch {
-    return {};
-  }
-}
-
 async function postForgotPassword(
   path: string,
   body: Record<string, string>,
@@ -54,7 +39,7 @@ async function postForgotPassword(
     };
   }
 
-  const data = await readForgotPasswordApiResponse(response);
+  const data = await parseApiResponse(response, forgotPasswordApiResponseSchema);
 
   if (!response.ok) {
     return {

@@ -1,4 +1,7 @@
 import { create } from "zustand";
+import { toast } from "sonner";
+
+import { onSessionExpired } from "@/shared/lib/session-expired";
 
 import {
   getAuthSession,
@@ -18,6 +21,7 @@ type AuthStore = {
   login: (data: LoginFormData) => Promise<AuthActionResult>;
   register: (data: RegisterFormData) => Promise<AuthActionResult>;
   logout: () => Promise<AuthLogoutResult>;
+  clearSession: () => void;
 };
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -60,4 +64,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
     return { ok: true };
   },
+  clearSession: () => set({ session: null }),
 }));
+
+onSessionExpired(() => {
+  if (useAuthStore.getState().session) {
+    useAuthStore.getState().clearSession();
+    toast.error("Sua sessão expirou. Faça login novamente.");
+  }
+});

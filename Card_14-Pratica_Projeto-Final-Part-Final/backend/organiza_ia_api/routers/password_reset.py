@@ -97,6 +97,7 @@ def _consume_valid_reset_token(
     reset_token = _latest_valid_token(session, user)
 
     if not reset_token:
+        verify_password(code, DUMMY_PASSWORD_HASH)
         raise _invalid_code_exception()
 
     if reset_token.attempts >= MAX_RESET_ATTEMPTS:

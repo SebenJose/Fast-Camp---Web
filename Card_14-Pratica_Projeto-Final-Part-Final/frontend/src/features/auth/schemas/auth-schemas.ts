@@ -51,7 +51,6 @@ export type LoginFormData = z.infer<typeof loginSchema>;
 export type RegisterFormData = z.infer<typeof registerSchema>;
 export type MockAuthSession = z.infer<typeof mockAuthSessionSchema>;
 export type MockAuthUser = z.infer<typeof mockAuthUserSchema>;
-export type AuthApiResponse = z.infer<typeof authApiResponseSchema>;
 
 export function getZodFieldErrors<TFieldName extends string>(
   error: z.ZodError,

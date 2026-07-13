@@ -29,6 +29,3 @@ export type ForgotPasswordVerifyFormData = z.infer<
 export type ForgotPasswordResetFormData = z.infer<
   typeof forgotPasswordResetSchema
 >;
-export type ForgotPasswordApiResponse = z.infer<
-  typeof forgotPasswordApiResponseSchema
->;

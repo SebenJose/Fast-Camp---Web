@@ -1,6 +1,7 @@
+import { parseApiResponse } from "@/shared/lib/parse-api-response";
+
 import {
   authApiResponseSchema,
-  type AuthApiResponse,
   type LoginFormData,
   type RegisterFormData,
 } from "../schemas/auth-schemas";
@@ -25,18 +26,6 @@ export type AuthLogoutResult =
 
 const AUTH_API_BASE_URL = "/api/auth";
 
-async function readAuthApiResponse(response: Response): Promise<AuthApiResponse> {
-  try {
-    const parsedResponse = authApiResponseSchema.safeParse(
-      await response.json(),
-    );
-
-    return parsedResponse.success ? parsedResponse.data : {};
-  } catch {
-    return {};
-  }
-}
-
 export async function getAuthSession() {
   const response = await fetch(`${AUTH_API_BASE_URL}/session`).catch(() => null);
 
@@ -44,7 +33,7 @@ export async function getAuthSession() {
     return null;
   }
 
-  const data = await readAuthApiResponse(response);
+  const data = await parseApiResponse(response, authApiResponseSchema);
 
   if (!response.ok) {
     return null;
@@ -69,7 +58,7 @@ export async function loginWithCredentials(
     };
   }
 
-  const data = await readAuthApiResponse(response);
+  const data = await parseApiResponse(response, authApiResponseSchema);
 
   if (!response.ok || !data.session) {
     return {
@@ -100,7 +89,7 @@ export async function registerWithCredentials(
     };
   }
 
-  const data = await readAuthApiResponse(response);
+  const data = await parseApiResponse(response, authApiResponseSchema);
 
   if (!response.ok || !data.session) {
     return {

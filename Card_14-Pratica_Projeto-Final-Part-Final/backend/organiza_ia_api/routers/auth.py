@@ -1,3 +1,4 @@
+from datetime import timedelta
 from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -6,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from organiza_ia_api.database import get_session
-from organiza_ia_api.models import User
+from organiza_ia_api.models import User, utcnow
 from organiza_ia_api.schemas import (
     AuthResponse,
     LoginRequest,
@@ -27,6 +28,13 @@ from organiza_ia_api.settings import get_settings
 router = APIRouter(prefix='/api/auth', tags=['auth'])
 
 EMAIL_TAKEN_MESSAGE = 'Já existe uma conta cadastrada com esse e-mail.'
+INVALID_CREDENTIALS_MESSAGE = 'E-mail ou senha inválidos.'
+
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_DURATION = timedelta(minutes=15)
+LOGIN_LOCKED_MESSAGE = (
+    'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.'
+)
 
 
 def _build_session(user: User) -> SessionPublic:
@@ -87,16 +95,40 @@ def login(
     normalized_email = data.email.lower()
     user = session.scalar(select(User).where(User.email == normalized_email))
 
+    if (
+        user
+        and user.login_locked_until
+        and user.login_locked_until > utcnow()
+    ):
+        raise HTTPException(
+            status_code=HTTPStatus.TOO_MANY_REQUESTS,
+            detail=LOGIN_LOCKED_MESSAGE,
+        )
+
     # Verifica contra o hash morto quando o usuário não existe, para o
     # tempo de resposta não denunciar se o e-mail está cadastrado.
     password_hash = user.password_hash if user else DUMMY_PASSWORD_HASH
     password_is_valid = verify_password(data.password, password_hash)
 
     if not user or not password_is_valid:
+        if user:
+            user.failed_login_attempts += 1
+            if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
+                user.login_locked_until = utcnow() + LOGIN_LOCKOUT_DURATION
+                user.failed_login_attempts = 0
+            session.add(user)
+            session.commit()
+
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,
-            detail='E-mail ou senha inválidos.',
+            detail=INVALID_CREDENTIALS_MESSAGE,
         )
+
+    if user.failed_login_attempts or user.login_locked_until:
+        user.failed_login_attempts = 0
+        user.login_locked_until = None
+        session.add(user)
+        session.commit()
 
     access_token = create_session_token(user)
     set_session_cookie(response, access_token)
