@@ -24,10 +24,10 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 
-import {
-  DAILY_INTERACTIONS_DATA,
-  WEEKLY_TASK_COMPLETION_DATA,
-} from "../data/dashboard-metrics";
+import type {
+  DailyInteractionPoint,
+  WeeklyTaskPoint,
+} from "../schemas/dashboard-schemas";
 
 const taskChartConfig = {
   completed: {
@@ -47,7 +47,13 @@ const interactionChartConfig = {
   },
 } satisfies ChartConfig;
 
-export function ProductivityChartsSection() {
+export function ProductivityChartsSection({
+  weeklyTasks,
+  dailyInteractions,
+}: {
+  weeklyTasks: WeeklyTaskPoint[];
+  dailyInteractions: DailyInteractionPoint[];
+}) {
   return (
     <section aria-labelledby="productivity-title">
       <div className="mb-4">
@@ -66,15 +72,15 @@ export function ProductivityChartsSection() {
         <Card className="gap-0 rounded-[24px] border border-app-border bg-opaque-black/80 p-0 ring-0">
           <CardHeader className="px-5 pt-5">
             <CardTitle className="text-primary-title">
-              Tarefas cumpridas
+              Tarefas da semana
             </CardTitle>
             <CardDescription className="text-secundary-title">
-              Cards marcados como feitos, de domingo a sábado.
+              Cards criados nesta semana, cumpridos e pendentes.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-5">
             <ChartContainer config={taskChartConfig} className="h-80 w-full">
-              <BarChart data={WEEKLY_TASK_COMPLETION_DATA}>
+              <BarChart data={weeklyTasks}>
                 <CartesianGrid vertical={false} />
                 <XAxis
                   axisLine={false}
@@ -82,7 +88,12 @@ export function ProductivityChartsSection() {
                   tickLine={false}
                   tickMargin={10}
                 />
-                <YAxis axisLine={false} tickLine={false} width={28} />
+                <YAxis
+                  allowDecimals={false}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                />
                 <ChartTooltip
                   content={<ChartTooltipContent indicator="dot" />}
                   cursor={false}
@@ -108,7 +119,7 @@ export function ProductivityChartsSection() {
               Interações com a IA
             </CardTitle>
             <CardDescription className="text-secundary-title">
-              Quantidade mockada de interações diárias com o assistente.
+              Mensagens enviadas ao assistente nesta semana.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-5">
@@ -116,7 +127,7 @@ export function ProductivityChartsSection() {
               config={interactionChartConfig}
               className="h-80 w-full"
             >
-              <LineChart data={DAILY_INTERACTIONS_DATA}>
+              <LineChart data={dailyInteractions}>
                 <CartesianGrid vertical={false} />
                 <XAxis
                   axisLine={false}
@@ -124,7 +135,12 @@ export function ProductivityChartsSection() {
                   tickLine={false}
                   tickMargin={10}
                 />
-                <YAxis axisLine={false} tickLine={false} width={28} />
+                <YAxis
+                  allowDecimals={false}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                />
                 <ChartTooltip
                   content={<ChartTooltipContent indicator="line" />}
                   cursor={false}

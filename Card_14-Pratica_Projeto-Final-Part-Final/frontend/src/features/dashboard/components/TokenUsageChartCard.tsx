@@ -16,11 +16,7 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 
-import {
-  TOKEN_USAGE_DATA,
-  TOKEN_WEEKLY_LIMIT,
-  TOKEN_WEEKLY_USED,
-} from "../data/dashboard-metrics";
+import type { WeeklyTokens } from "../schemas/dashboard-schemas";
 
 const chartConfig = {
   value: {
@@ -33,9 +29,26 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const tokenUsagePercent = TOKEN_USAGE_DATA[0].value;
+export function TokenUsageChartCard({
+  weeklyTokens,
+}: {
+  weeklyTokens: WeeklyTokens;
+}) {
+  const tokenUsagePercent =
+    weeklyTokens.limit > 0
+      ? Math.min(
+          100,
+          Math.round((weeklyTokens.used / weeklyTokens.limit) * 100),
+        )
+      : 0;
+  const tokenUsageData = [
+    {
+      name: "Tokens usados",
+      value: tokenUsagePercent,
+      fill: "var(--color-used)",
+    },
+  ];
 
-export function TokenUsageChartCard() {
   return (
     <section aria-labelledby="tokens-title">
       <div className="mb-4">
@@ -65,7 +78,7 @@ export function TokenUsageChartCard() {
             className="mx-auto aspect-square h-72"
           >
             <RadialBarChart
-              data={TOKEN_USAGE_DATA}
+              data={tokenUsageData}
               endAngle={90 - (360 * tokenUsagePercent) / 100}
               innerRadius={92}
               outerRadius={132}
@@ -114,7 +127,7 @@ export function TokenUsageChartCard() {
                 Tokens consumidos
               </p>
               <p className="mt-2 text-3xl font-semibold text-primary-title">
-                {TOKEN_WEEKLY_USED.toLocaleString("pt-BR")}
+                {weeklyTokens.used.toLocaleString("pt-BR")}
               </p>
             </div>
             <div className="rounded-2xl border border-app-border bg-input-opaque/55 p-4">
@@ -122,7 +135,7 @@ export function TokenUsageChartCard() {
                 Limite semanal
               </p>
               <p className="mt-2 text-3xl font-semibold text-primary-title">
-                {TOKEN_WEEKLY_LIMIT.toLocaleString("pt-BR")}
+                {weeklyTokens.limit.toLocaleString("pt-BR")}
               </p>
             </div>
           </div>
