@@ -1,23 +1,38 @@
+import asyncio
+from datetime import timedelta
 from http import HTTPStatus
+from typing import Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from pydantic import ValidationError
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from organiza_ia_api import ai
+from organiza_ia_api import ai, billing_service, schedule_service
 from organiza_ia_api.database import get_session
-from organiza_ia_api.models import ChatMessage, User
+from organiza_ia_api.models import ChatMessage, Schedule, User, utcnow
 from organiza_ia_api.schemas import (
+    SCHEDULE_TIME_PATTERN,
     ChatMessagePublic,
     ChatMessagesResponse,
+    ScheduleDayRange,
+    ScheduleEventFormValues,
     SendChatMessageRequest,
+    time_to_minutes,
+    utc_isoformat,
 )
 from organiza_ia_api.security import get_current_user
+from organiza_ia_api.settings import get_settings
 
 router = APIRouter(prefix='/api/chat', tags=['chat'])
 
-# Quantas mensagens recentes vão como contexto para a LLM a cada envio.
 HISTORY_CONTEXT_LIMIT = 20
+
+# Cada mensagem dispara chamadas reais à LLM (custo/quota); o teto por
+# janela barra rajadas de script sem atrapalhar quem digita.
+RATE_LIMIT_MAX_MESSAGES = 10
+RATE_LIMIT_WINDOW = timedelta(minutes=1)
 
 AI_NOT_CONFIGURED_MESSAGE = (
     'O serviço de IA ainda não está configurado no servidor.'
@@ -26,6 +41,13 @@ AI_UNAVAILABLE_MESSAGE = (
     'Não foi possível obter a resposta da IA agora. '
     'Tente novamente em instantes.'
 )
+BALANCE_EMPTY_MESSAGE = (
+    'Seu saldo de tokens acabou. Recarregue para continuar conversando.'
+)
+RATE_LIMITED_MESSAGE = (
+    'Muitas mensagens em pouco tempo. '
+    'Aguarde um instante antes de enviar de novo.'
+)
 
 
 def _to_public(message: ChatMessage) -> ChatMessagePublic:
@@ -33,10 +55,186 @@ def _to_public(message: ChatMessage) -> ChatMessagePublic:
         id=str(message.id),
         role=message.role,
         content=message.content,
-        createdAt=f'{message.created_at.isoformat()}Z',
+        createdAt=utc_isoformat(message.created_at),
         inputTokens=message.input_tokens,
         outputTokens=message.output_tokens,
     )
+
+
+def _minutes_to_time(minutes: int) -> str:
+    return f'{minutes // 60:02d}:{minutes % 60:02d}'
+
+
+def _parse_event_id(value: Any) -> UUID | None:
+    try:
+        return UUID(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _first_validation_message(error: ValidationError) -> str:
+    message: str = error.errors()[0]['msg']
+    return message.removeprefix('Value error, ')
+
+
+def _tool_create_event(
+    session: Session, schedule: Schedule, arguments: dict[str, Any]
+) -> dict[str, Any]:
+    try:
+        values = ScheduleEventFormValues(
+            title=str(arguments.get('title') or ''),
+            startTime=str(arguments.get('startTime') or ''),
+            endTime=str(arguments.get('endTime') or ''),
+            tone=str(arguments.get('tone') or 'sky'),
+        )
+        event = schedule_service.create_schedule_event(
+            session, schedule, values
+        )
+    except ValidationError as error:
+        return {'error': _first_validation_message(error)}
+    except schedule_service.ScheduleEventError as error:
+        return {'error': error.message}
+
+    # flush (sem commit): o card só é gravado de fato junto com as
+    # mensagens e o débito, no commit final do envio.
+    session.flush()
+
+    return {
+        'ok': True,
+        'event': {
+            'title': event.title,
+            'startTime': values.startTime,
+            'endTime': values.endTime,
+            'period': event.period_id,
+        },
+    }
+
+
+def _tool_list_events(
+    session: Session, schedule: Schedule, arguments: dict[str, Any]
+) -> dict[str, Any]:
+    return schedule_service.build_schedule_public(
+        session, schedule
+    ).model_dump()
+
+
+def _tool_update_event(
+    session: Session, schedule: Schedule, arguments: dict[str, Any]
+) -> dict[str, Any]:
+    event_id = _parse_event_id(arguments.get('eventId'))
+    if event_id is None:
+        return {'error': 'Informe o id do card a editar.'}
+
+    event = schedule_service.find_owned_event(session, schedule, event_id)
+    if not event:
+        return {'error': 'Card não encontrado.'}
+
+    # Campos omitidos mantêm o valor atual do card.
+    title = arguments.get('title')
+    start_time = arguments.get('startTime')
+    end_time = arguments.get('endTime')
+    tone = arguments.get('tone')
+    try:
+        values = ScheduleEventFormValues(
+            title=str(event.title if title is None else title),
+            startTime=str(
+                _minutes_to_time(event.start_minutes)
+                if start_time is None
+                else start_time
+            ),
+            endTime=str(
+                _minutes_to_time(event.end_minutes)
+                if end_time is None
+                else end_time
+            ),
+            tone=str(tone or event.tone or 'sky'),
+        )
+        schedule_service.update_schedule_event(
+            session, schedule, event, values
+        )
+    except ValidationError as error:
+        return {'error': _first_validation_message(error)}
+    except schedule_service.ScheduleEventError as error:
+        return {'error': error.message}
+
+    session.flush()
+
+    return {
+        'ok': True,
+        'event': {
+            'id': str(event.id),
+            'title': event.title,
+            'startTime': values.startTime,
+            'endTime': values.endTime,
+            'period': event.period_id,
+        },
+    }
+
+
+def _tool_delete_event(
+    session: Session, schedule: Schedule, arguments: dict[str, Any]
+) -> dict[str, Any]:
+    event_id = _parse_event_id(arguments.get('eventId'))
+    if event_id is None:
+        return {'error': 'Informe o id do card a excluir.'}
+
+    event = schedule_service.find_owned_event(session, schedule, event_id)
+    if not event:
+        return {'error': 'Card não encontrado.'}
+
+    title = event.title
+    session.delete(event)
+    session.flush()
+
+    return {'ok': True, 'deleted': {'id': str(event_id), 'title': title}}
+
+
+def _tool_set_day_range(
+    session: Session, schedule: Schedule, arguments: dict[str, Any]
+) -> dict[str, Any]:
+    start = str(arguments.get('startTime') or '')
+    end = str(arguments.get('endTime') or '')
+    if not (
+        SCHEDULE_TIME_PATTERN.match(start) and SCHEDULE_TIME_PATTERN.match(end)
+    ):
+        return {'error': 'Informe os horários no formato HH:mm.'}
+
+    try:
+        day_range = ScheduleDayRange(
+            startMinutes=time_to_minutes(start),
+            endMinutes=time_to_minutes(end),
+        )
+    except ValidationError as error:
+        return {'error': _first_validation_message(error)}
+
+    schedule.day_range_start_minutes = day_range.startMinutes
+    schedule.day_range_end_minutes = day_range.endMinutes
+    session.add(schedule)
+    session.flush()
+
+    return {'ok': True, 'dayRange': {'startTime': start, 'endTime': end}}
+
+
+_TOOL_HANDLERS = {
+    'create_schedule_event': _tool_create_event,
+    'list_schedule_events': _tool_list_events,
+    'update_schedule_event': _tool_update_event,
+    'delete_schedule_event': _tool_delete_event,
+    'set_day_range': _tool_set_day_range,
+}
+
+
+def _build_tool_executor(
+    session: Session, schedule: Schedule
+) -> ai.ToolExecutor:
+    def execute_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        handler = _TOOL_HANDLERS.get(name)
+        if not handler:
+            return {'error': 'Ferramenta desconhecida.'}
+
+        return handler(session, schedule, arguments)
+
+    return execute_tool
 
 
 def _load_recent_messages(
@@ -74,50 +272,114 @@ def list_messages(
     status_code=HTTPStatus.CREATED,
     response_model=ChatMessagesResponse,
 )
-async def send_message(
+def send_message(
     data: SendChatMessageRequest,
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> ChatMessagesResponse:
+    schedule = schedule_service.get_or_create_schedule(
+        session, current_user.id
+    )
+
+    current_user = session.scalar(
+        select(User)
+        .where(User.id == current_user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+    if current_user.token_balance <= 0:
+        session.rollback()
+        raise HTTPException(
+            status_code=HTTPStatus.PAYMENT_REQUIRED,
+            detail=BALANCE_EMPTY_MESSAGE,
+        )
+
+    recent_messages = session.scalar(
+        select(func.count())
+        .select_from(ChatMessage)
+        .where(
+            ChatMessage.user_id == current_user.id,
+            ChatMessage.role == 'user',
+            ChatMessage.created_at >= utcnow() - RATE_LIMIT_WINDOW,
+        )
+    )
+    if recent_messages >= RATE_LIMIT_MAX_MESSAGES:
+        session.rollback()
+        raise HTTPException(
+            status_code=HTTPStatus.TOO_MANY_REQUESTS,
+            detail=RATE_LIMITED_MESSAGE,
+        )
+
     history = _load_recent_messages(
         session, current_user.id, HISTORY_CONTEXT_LIMIT
     )
-    payload = [
+    day_range_note = (
+        'Intervalo visível do dia deste usuário: '
+        f'{_minutes_to_time(schedule.day_range_start_minutes)} às '
+        f'{_minutes_to_time(schedule.day_range_end_minutes)}.'
+    )
+    payload = [{'role': 'system', 'content': day_range_note}]
+    payload.extend(
         {'role': message.role, 'content': message.content}
         for message in history
-    ]
+    )
     payload.append({'role': 'user', 'content': data.content})
 
+    user_id = current_user.id
+    user_message = ChatMessage(
+        user_id=user_id, role='user', content=data.content
+    )
+    session.add(user_message)
+    session.flush()
+    user_public = _to_public(user_message)
+
     try:
-        reply = await ai.generate_reply(payload)
+        reply = asyncio.run(
+            asyncio.wait_for(
+                ai.generate_reply(
+                    payload, _build_tool_executor(session, schedule)
+                ),
+                timeout=get_settings().AI_TOTAL_TIMEOUT_SECONDS,
+            )
+        )
+    except TimeoutError:
+        session.rollback()
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_GATEWAY,
+            detail=AI_UNAVAILABLE_MESSAGE,
+        )
     except ai.AiNotConfiguredError:
+        session.rollback()
         raise HTTPException(
             status_code=HTTPStatus.SERVICE_UNAVAILABLE,
             detail=AI_NOT_CONFIGURED_MESSAGE,
         )
     except ai.AiServiceError:
+        session.rollback()
         raise HTTPException(
             status_code=HTTPStatus.BAD_GATEWAY,
             detail=AI_UNAVAILABLE_MESSAGE,
         )
 
-    user_message = ChatMessage(
-        user_id=current_user.id, role='user', content=data.content
-    )
     assistant_message = ChatMessage(
-        user_id=current_user.id,
+        user_id=user_id,
         role='assistant',
         content=reply.content,
         input_tokens=reply.input_tokens,
         output_tokens=reply.output_tokens,
     )
-
-    session.add(user_message)
     session.add(assistant_message)
+
+    cost = reply.input_tokens + reply.output_tokens
+    balance = billing_service.debit_tokens(session, user_id, cost)
+
+    session.flush()
+    assistant_public = _to_public(assistant_message)
     session.commit()
-    session.refresh(user_message)
-    session.refresh(assistant_message)
 
     return ChatMessagesResponse(
-        messages=[_to_public(user_message), _to_public(assistant_message)]
+        messages=[user_public, assistant_public],
+        balance=balance,
+        scheduleUpdated=reply.tools_executed,
     )

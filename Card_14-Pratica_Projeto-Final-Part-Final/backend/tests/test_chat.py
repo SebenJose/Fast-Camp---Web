@@ -1,11 +1,14 @@
 import asyncio
 import json
+from datetime import timedelta
 from http import HTTPStatus
+from uuid import UUID
 
 import httpx
 import pytest
 
 from organiza_ia_api import ai
+from organiza_ia_api.models import ChatMessage, utcnow
 from organiza_ia_api.routers import chat
 from organiza_ia_api.settings import get_settings
 
@@ -16,19 +19,8 @@ USAGE_OUTPUT_TOKENS = 5
 
 
 @pytest.fixture
-def fake_reply(monkeypatch):
-    calls = []
-
-    async def _generate_reply(history):
-        calls.append(history)
-        return ai.AiReply(
-            content='Resposta da IA.',
-            input_tokens=FAKE_INPUT_TOKENS,
-            output_tokens=FAKE_OUTPUT_TOKENS,
-        )
-
-    monkeypatch.setattr(chat.ai, 'generate_reply', _generate_reply)
-    return calls
+def fake_reply(make_fake_reply):
+    return make_fake_reply(FAKE_INPUT_TOKENS, FAKE_OUTPUT_TOKENS)
 
 
 @pytest.fixture
@@ -113,10 +105,75 @@ def test_send_message_sends_history_to_llm(client, auth_headers, fake_reply):
     )
 
     second_call = fake_reply[1]
-    assert [m['role'] for m in second_call] == ['user', 'assistant', 'user']
-    assert second_call[0]['content'] == 'Primeira mensagem'
-    assert second_call[1]['content'] == 'Resposta da IA.'
-    assert second_call[2]['content'] == 'Segunda mensagem'
+    assert [m['role'] for m in second_call] == [
+        'system',
+        'user',
+        'assistant',
+        'user',
+    ]
+    assert 'Intervalo visível do dia' in second_call[0]['content']
+    assert second_call[1]['content'] == 'Primeira mensagem'
+    assert second_call[2]['content'] == 'Resposta da IA.'
+    assert second_call[3]['content'] == 'Segunda mensagem'
+
+
+def test_send_message_informs_user_day_range(client, auth_headers, fake_reply):
+    client.patch(
+        '/api/schedule/day-range',
+        json={
+            'userId': 'qualquer',
+            'dayRange': {'startMinutes': 7 * 60, 'endMinutes': 22 * 60 + 30},
+        },
+        headers=auth_headers,
+    )
+
+    client.post(
+        '/api/chat/messages', json={'content': 'Oi'}, headers=auth_headers
+    )
+
+    day_range_note = fake_reply[0][0]
+    assert day_range_note['role'] == 'system'
+    assert '07:00 às 22:30' in day_range_note['content']
+
+
+def test_send_message_rate_limited(client, auth_headers, fake_reply):
+    for index in range(chat.RATE_LIMIT_MAX_MESSAGES):
+        response = client.post(
+            '/api/chat/messages',
+            json={'content': f'Mensagem {index}'},
+            headers=auth_headers,
+        )
+        assert response.status_code == HTTPStatus.CREATED
+
+    response = client.post(
+        '/api/chat/messages',
+        json={'content': 'Uma a mais'},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == HTTPStatus.TOO_MANY_REQUESTS
+    assert response.json()['message'] == chat.RATE_LIMITED_MESSAGE
+
+
+def test_rate_limit_ignores_messages_outside_window(
+    client, auth_headers, registered_user, session, fake_reply
+):
+    old_created_at = utcnow() - chat.RATE_LIMIT_WINDOW - timedelta(minutes=1)
+    for index in range(chat.RATE_LIMIT_MAX_MESSAGES):
+        message = ChatMessage(
+            user_id=UUID(registered_user['session']['userId']),
+            role='user',
+            content=f'Antiga {index}',
+        )
+        message.created_at = old_created_at
+        session.add(message)
+    session.commit()
+
+    response = client.post(
+        '/api/chat/messages', json={'content': 'Nova'}, headers=auth_headers
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
 
 
 def test_send_message_rejects_empty_content(client, auth_headers, fake_reply):
@@ -143,7 +200,7 @@ def test_send_message_rejects_too_long_content(
 def test_send_message_when_ai_not_configured(
     client, auth_headers, monkeypatch
 ):
-    async def _not_configured(history):
+    async def _not_configured(history, execute_tool=None):
         raise ai.AiNotConfiguredError
 
     monkeypatch.setattr(chat.ai, 'generate_reply', _not_configured)
@@ -157,7 +214,7 @@ def test_send_message_when_ai_not_configured(
 
 
 def test_send_message_when_ai_fails(client, auth_headers, monkeypatch):
-    async def _fails(history):
+    async def _fails(history, execute_tool=None):
         raise ai.AiServiceError
 
     monkeypatch.setattr(chat.ai, 'generate_reply', _fails)
@@ -173,7 +230,7 @@ def test_send_message_when_ai_fails(client, auth_headers, monkeypatch):
 def test_send_message_failure_persists_nothing(
     client, auth_headers, monkeypatch
 ):
-    async def _fails(history):
+    async def _fails(history, execute_tool=None):
         raise ai.AiServiceError
 
     monkeypatch.setattr(chat.ai, 'generate_reply', _fails)

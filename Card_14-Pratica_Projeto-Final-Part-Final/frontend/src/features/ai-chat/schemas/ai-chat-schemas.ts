@@ -16,6 +16,8 @@ export const chatMessageSchema = z.object({
 export const chatApiResponseSchema = z.object({
   message: z.string().nullish(),
   messages: z.array(chatMessageSchema).nullish(),
+  balance: z.number().int().nonnegative().nullish(),
+  scheduleUpdated: z.boolean().nullish(),
 });
 
 export const chatInputSchema = z
@@ -26,4 +28,3 @@ export const chatInputSchema = z
 
 export type ChatMessageRole = z.infer<typeof chatMessageRoleSchema>;
 export type ChatApiMessage = z.infer<typeof chatMessageSchema>;
-export type ChatApiResponse = z.infer<typeof chatApiResponseSchema>;

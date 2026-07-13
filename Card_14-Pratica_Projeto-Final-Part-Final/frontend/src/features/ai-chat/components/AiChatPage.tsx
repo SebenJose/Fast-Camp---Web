@@ -1,6 +1,8 @@
 "use client";
 
-import { BotMessageSquare, ChevronDown, ChevronUp, Send, Sparkles, StopCircle } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { BotMessageSquare, ChevronDown, ChevronUp, Coins, Send, Sparkles, StopCircle } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -32,10 +34,10 @@ interface Message {
 }
 
 const SUGGESTED_PROMPTS = [
-  "Organize minha semana",
   "Quais são meus compromissos de hoje?",
-  "Crie uma tarefa para amanhã",
-  "Resuma meu dia",
+  "Marque um estudo das 19:00 às 20:00",
+  "Monte um plano para minha semana",
+  "Como priorizar minhas tarefas de hoje?",
 ];
 
 function getWelcomeMessage(): Message {
@@ -167,13 +169,16 @@ function TypingIndicator() {
 }
 
 export function AiChatPage() {
+  const queryClient = useQueryClient();
   const session = useAuthStore((store) => store.session);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isBalanceEmpty, setIsBalanceEmpty] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const pendingIdRef = useRef(0);
+  const sendGenerationRef = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -215,6 +220,22 @@ export function AiChatPage() {
     textareaRef.current?.focus();
   }
 
+  async function reconcileAbortedSend(generation: number) {
+    const history = await getChatMessages();
+
+    if (sendGenerationRef.current !== generation) {
+      return;
+    }
+
+    if (history && history.length > 0) {
+      setMessages(history.map(toMessage));
+    }
+
+    void queryClient.invalidateQueries({ queryKey: ["billing"] });
+    void queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+    void queryClient.invalidateQueries({ queryKey: ["schedule"] });
+  }
+
   function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setInput(e.target.value);
     e.target.style.height = "auto";
@@ -224,11 +245,12 @@ export function AiChatPage() {
   async function handleSend(text: string = input) {
     const parsedMessage = chatInputSchema.safeParse(text);
 
-    if (!parsedMessage.success || isTyping) {
+    if (!parsedMessage.success || isTyping || isBalanceEmpty) {
       return;
     }
 
     const content = parsedMessage.data;
+    const generation = ++sendGenerationRef.current;
     pendingIdRef.current += 1;
     const optimisticMessage: Message = {
       id: `pending-${pendingIdRef.current}`,
@@ -253,13 +275,24 @@ export function AiChatPage() {
     abortControllerRef.current = null;
     setIsTyping(false);
 
+    if (sendGenerationRef.current !== generation) {
+      return;
+    }
+
     if (!result.ok) {
+      if (result.aborted) {
+        void reconcileAbortedSend(generation);
+        return;
+      }
+
       setMessages((prev) =>
         prev.filter((message) => message.id !== optimisticMessage.id),
       );
       setInput(content);
 
-      if (!result.aborted) {
+      if (result.insufficientBalance) {
+        setIsBalanceEmpty(true);
+      } else {
         toast.error(result.message);
       }
 
@@ -274,6 +307,17 @@ export function AiChatPage() {
       persistedUserMessage,
       assistantMessage,
     ]);
+
+    if (result.balance === 0) {
+      setIsBalanceEmpty(true);
+    }
+
+    void queryClient.invalidateQueries({ queryKey: ["billing"] });
+    void queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+
+    if (result.scheduleUpdated) {
+      void queryClient.invalidateQueries({ queryKey: ["schedule"] });
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -320,6 +364,27 @@ export function AiChatPage() {
         </div>
       </ScrollArea>
 
+      {isBalanceEmpty && (
+        <div className="shrink-0 px-4 pb-1">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3">
+            <Coins size={18} className="shrink-0 text-warning" aria-hidden="true" />
+            <p className="min-w-0 flex-1 text-sm font-medium text-warning">
+              Seu saldo de tokens acabou. Recarregue para continuar
+              conversando.
+            </p>
+            <Link
+              href="/billing"
+              className={cn(
+                "shrink-0 rounded-lg bg-warning/20 px-3 py-1.5 text-sm font-semibold text-warning",
+                "transition-colors hover:bg-warning/30",
+              )}
+            >
+              Recarregar tokens
+            </Link>
+          </div>
+        </div>
+      )}
+
       {!hasMessages && (
         <div className="shrink-0 flex flex-wrap gap-2 px-6 pb-1">
           {SUGGESTED_PROMPTS.map((prompt) => (
@@ -349,16 +414,20 @@ export function AiChatPage() {
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder={
-              isTyping
-                ? "Aguarde a IA responder..."
-                : "Escreva uma mensagem... (Enter para enviar, Shift+Enter para nova linha)"
+              isBalanceEmpty
+                ? "Saldo de tokens esgotado — recarregue para continuar."
+                : isTyping
+                  ? "Aguarde a IA responder..."
+                  : "Escreva uma mensagem... (Enter para enviar, Shift+Enter para nova linha)"
             }
             aria-label={
-              isTyping
-                ? "Aguardando resposta da IA"
-                : "Mensagem para o assistente"
+              isBalanceEmpty
+                ? "Saldo de tokens esgotado"
+                : isTyping
+                  ? "Aguardando resposta da IA"
+                  : "Mensagem para o assistente"
             }
-            disabled={isTyping}
+            disabled={isTyping || isBalanceEmpty}
             rows={1}
             maxLength={CHAT_MESSAGE_MAX_LENGTH}
             className="max-h-36 min-w-0 flex-1 resize-none overflow-y-auto border-none bg-transparent px-2 py-1.5 focus:border-none"
@@ -369,7 +438,7 @@ export function AiChatPage() {
             onClick={() =>
               isTyping ? handleStopResponse() : void handleSend()
             }
-            disabled={!isTyping && !input.trim()}
+            disabled={(!isTyping && !input.trim()) || isBalanceEmpty}
             aria-label={isTyping ? "Parar resposta da IA" : "Enviar mensagem"}
             aria-busy={isTyping}
             className={cn(
