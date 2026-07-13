@@ -135,4 +135,3 @@ export const scheduleEventRequestSchema = scheduleUserRequestSchema.extend({
 });
 
 export type StoredSchedule = z.infer<typeof storedScheduleSchema>;
-export type ScheduleApiResponse = z.infer<typeof scheduleApiResponseSchema>;

@@ -1,6 +1,7 @@
+import { parseApiResponse } from "@/shared/lib/parse-api-response";
+
 import {
   scheduleApiResponseSchema,
-  type ScheduleApiResponse,
   type StoredSchedule,
 } from "../schemas/schedule-schemas";
 import type { ScheduleDayRange, ScheduleEventFormValues } from "../types/schedule";
@@ -17,20 +18,6 @@ export type ScheduleActionResult =
       message: string;
     };
 
-async function readScheduleApiResponse(
-  response: Response,
-): Promise<ScheduleApiResponse> {
-  try {
-    const parsedResponse = scheduleApiResponseSchema.safeParse(
-      await response.json(),
-    );
-
-    return parsedResponse.success ? parsedResponse.data : {};
-  } catch {
-    return {};
-  }
-}
-
 function getScheduleUrl(userId: string) {
   const params = new URLSearchParams({ userId });
 
@@ -44,7 +31,7 @@ export async function getUserSchedule(userId: string) {
     return null;
   }
 
-  const data = await readScheduleApiResponse(response);
+  const data = await parseApiResponse(response, scheduleApiResponseSchema);
 
   if (!response.ok) {
     return null;
@@ -122,7 +109,7 @@ async function readScheduleActionResult(
     };
   }
 
-  const data = await readScheduleApiResponse(response);
+  const data = await parseApiResponse(response, scheduleApiResponseSchema);
 
   if (!response.ok || !data.schedule) {
     return {

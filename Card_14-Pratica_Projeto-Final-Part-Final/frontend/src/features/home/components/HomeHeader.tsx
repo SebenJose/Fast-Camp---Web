@@ -56,8 +56,9 @@ export function HomeHeader({ events, currentDate }: HomeHeaderProps) {
           Hoje
         </h1>
         <p className="mt-4 max-w-2xl text-sm font-medium leading-6 text-secundary-title sm:text-base">
-          Uma visão limpa do dia, separada por períodos reais para facilitar
-          decisões sem sobrecarregar a agenda.
+          Sua rotina diária recorrente, separada por períodos reais do dia: os
+          mesmos blocos se repetem a cada dia, para você focar no agora sem
+          sobrecarregar a agenda.
         </p>
       </div>
 

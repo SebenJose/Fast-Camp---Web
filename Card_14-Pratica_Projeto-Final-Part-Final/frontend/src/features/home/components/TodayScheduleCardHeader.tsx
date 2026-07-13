@@ -25,8 +25,8 @@ export function TodayScheduleCardHeader({
           Agenda de hoje
         </CardTitle>
         <CardDescription className="mt-1 text-sm font-medium text-secundary-title">
-          Blocos organizados por período, com horários relevantes apenas para
-          aquela parte do dia.
+          Blocos da sua rotina recorrente, organizados por período — os mesmos
+          todo dia, com horários relevantes apenas para aquela parte do dia.
         </CardDescription>
       </div>
 

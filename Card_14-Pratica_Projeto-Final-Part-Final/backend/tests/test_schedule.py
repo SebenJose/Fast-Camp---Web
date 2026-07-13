@@ -174,6 +174,26 @@ def test_update_day_range_persists(client, auth_headers):
     assert day_range['startMinutes'] == 8 * 60
 
 
+def test_narrowing_day_range_hides_events_outside_it(
+    client, auth_headers, event_payload
+):
+    client.post(
+        '/api/schedule/events', json=event_payload, headers=auth_headers
+    )
+
+    response = client.patch(
+        '/api/schedule/day-range',
+        json={
+            'userId': 'q',
+            'dayRange': {'startMinutes': 6 * 60, 'endMinutes': 8 * 60},
+        },
+        headers=auth_headers,
+    )
+
+    events = response.json()['schedule']['eventsByPeriodId']
+    assert all(len(period_events) == 0 for period_events in events.values())
+
+
 def test_update_day_range_end_before_start(client, auth_headers):
     response = client.patch(
         '/api/schedule/day-range',
