@@ -272,14 +272,11 @@ def _prepare_conversation(
 ) -> tuple[Schedule, list[dict[str, Any]], ChatMessagePublic]:
     schedule = schedule_service.get_or_create_schedule(session, user_id)
 
-    user = session.scalar(
-        select(User)
-        .where(User.id == user_id)
-        .with_for_update()
-        .execution_options(populate_existing=True)
+    balance = session.scalar(
+        select(User.token_balance).where(User.id == user_id)
     )
 
-    if user.token_balance <= 0:
+    if balance <= 0:
         session.rollback()
         raise HTTPException(
             status_code=HTTPStatus.PAYMENT_REQUIRED,
@@ -354,9 +351,6 @@ async def send_message(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> ChatMessagesResponse:
-    # O banco fica fora do event loop (to_thread): o SELECT FOR UPDATE
-    # pode esperar o lock por até um ciclo inteiro de IA de outra request
-    # do mesmo usuário, e no loop isso travaria o servidor todo.
     schedule, payload, user_public = await asyncio.to_thread(
         _prepare_conversation, session, current_user.id, data.content
     )
