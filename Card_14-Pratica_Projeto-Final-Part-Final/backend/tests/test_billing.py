@@ -1,9 +1,10 @@
 from http import HTTPStatus
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
 
-from organiza_ia_api import ai
+from organiza_ia_api import ai, billing_service
 from organiza_ia_api.models import INITIAL_TOKEN_BALANCE, User
 from organiza_ia_api.routers import chat
 from organiza_ia_api.routers.billing import RECHARGE_PACKAGES
@@ -214,3 +215,18 @@ def test_recharge_unblocks_chat(
     response = _send_message(client, auth_headers)
     assert response.status_code == HTTPStatus.CREATED
     assert response.json()['balance'] == RECHARGE_AMOUNT - INTERACTION_COST
+
+
+# ---------------------------------------------------------------------------
+# billing_service
+# ---------------------------------------------------------------------------
+
+
+def test_debit_tokens_unknown_user_raises(session):
+    with pytest.raises(ValueError, match='não encontrado'):
+        billing_service.debit_tokens(session, uuid4(), 10)
+
+
+def test_credit_tokens_unknown_user_raises(session):
+    with pytest.raises(ValueError, match='não encontrado'):
+        billing_service.credit_tokens(session, uuid4(), 10)

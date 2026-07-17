@@ -30,6 +30,9 @@ def _apply_transaction(
         select(User.token_balance).where(User.id == user_id).with_for_update()
     )
 
+    if balance is None:
+        raise ValueError(f'Usuário {user_id} não encontrado.')
+
     new_balance = balance + delta
     if floor_at_zero:
         new_balance = max(0, new_balance)
