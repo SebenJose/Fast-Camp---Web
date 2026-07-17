@@ -49,7 +49,9 @@ class User:
 class PasswordResetToken:
     __tablename__ = 'password_reset_tokens'
 
-    user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id'), index=True)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey('users.id', ondelete='CASCADE'), index=True
+    )
     code_hash: Mapped[str]
     expires_at: Mapped[datetime] = mapped_column(index=True)
     id: Mapped[UUID] = mapped_column(
@@ -66,7 +68,9 @@ class PasswordResetToken:
 class Schedule:
     __tablename__ = 'schedules'
 
-    user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id'), unique=True)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey('users.id', ondelete='CASCADE'), unique=True
+    )
     day_range_start_minutes: Mapped[int] = mapped_column(default=6 * 60)
     day_range_end_minutes: Mapped[int] = mapped_column(default=22 * 60)
     id: Mapped[UUID] = mapped_column(
@@ -84,7 +88,9 @@ class Schedule:
 class TokenTransaction:
     __tablename__ = 'token_transactions'
 
-    user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id'), index=True)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey('users.id', ondelete='CASCADE'), index=True
+    )
     type: Mapped[str]
     amount: Mapped[int]
     balance_after: Mapped[int]
@@ -100,7 +106,9 @@ class TokenTransaction:
 class ChatMessage:
     __tablename__ = 'chat_messages'
 
-    user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id'), index=True)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey('users.id', ondelete='CASCADE'), index=True
+    )
     role: Mapped[str]
     content: Mapped[str]
     input_tokens: Mapped[int] = mapped_column(default=0)
@@ -118,7 +126,7 @@ class ScheduleEvent:
     __tablename__ = 'schedule_events'
 
     schedule_id: Mapped[UUID] = mapped_column(
-        ForeignKey('schedules.id'), index=True
+        ForeignKey('schedules.id', ondelete='CASCADE'), index=True
     )
     period_id: Mapped[str]
     title: Mapped[str]
