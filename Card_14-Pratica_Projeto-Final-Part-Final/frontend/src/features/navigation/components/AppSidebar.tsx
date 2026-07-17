@@ -3,6 +3,7 @@
 import {
   BotMessageSquare,
   CalendarDays,
+  ChevronsRight,
   Coins,
   LayoutDashboard,
   LogIn,
@@ -46,7 +47,9 @@ const NAV_ITEMS: NavItem[] = [
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const isExpanded = isPinned || isHovered;
   const session = useAuthStore((store) => store.session);
   const logout = useAuthStore((store) => store.logout);
 
@@ -70,8 +73,12 @@ export function AppSidebar() {
     <aside
       aria-label="Navegação principal"
       data-expanded={isExpanded}
-      onMouseEnter={() => setIsExpanded(true)}
-      onMouseLeave={() => setIsExpanded(false)}
+      onPointerEnter={(event) => {
+        if (event.pointerType === "mouse") setIsHovered(true);
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType === "mouse") setIsHovered(false);
+      }}
       className={cn(
         "peer fixed inset-y-0 left-0 z-40 flex flex-col",
         "bg-opaque-black border-r border-app-border",
@@ -79,6 +86,30 @@ export function AppSidebar() {
         isExpanded ? "w-56" : "w-16",
       )}
     >
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        aria-label={isExpanded ? "Recolher navegação" : "Expandir navegação"}
+        onClick={() => setIsPinned((value) => !value)}
+        className={cn(
+          "flex items-center rounded-lg text-app-muted transition-colors duration-150",
+          "hover:bg-card-opaque hover:text-primary-title",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secundary-title/50",
+          isExpanded
+            ? "mx-2 mt-3 h-9 px-3"
+            : "mx-auto mt-3 h-11 w-11 justify-center",
+        )}
+      >
+        <ChevronsRight
+          size={18}
+          className={cn(
+            "shrink-0 transition-transform duration-300",
+            isExpanded && "rotate-180",
+          )}
+          aria-hidden="true"
+        />
+      </button>
+
       <nav className="flex flex-1 flex-col gap-1 overflow-hidden py-3">
         {NAV_ITEMS.map(({ id, label, href, icon: Icon }) => {
           const isActive = pathname === href;
