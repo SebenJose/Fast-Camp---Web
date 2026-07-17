@@ -18,3 +18,7 @@ build/
 
 # Claude Code (configuração local)
 .claude/
+
+# Arquivos locais de planejamento e validação (não entregues)
+Card_14-Pratica_Projeto-Final-Part-Final/scripts/
+Card_14-Pratica_Projeto-Final-Part-Final/CHECKLIST.md
