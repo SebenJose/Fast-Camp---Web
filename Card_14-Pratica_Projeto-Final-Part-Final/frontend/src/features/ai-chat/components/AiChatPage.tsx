@@ -173,6 +173,8 @@ export function AiChatPage() {
   const session = useAuthStore((store) => store.session);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [historyError, setHistoryError] = useState(false);
+  const [historyAttempt, setHistoryAttempt] = useState(0);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isBalanceEmpty, setIsBalanceEmpty] = useState(false);
@@ -198,7 +200,13 @@ export function AiChatPage() {
         return;
       }
 
-      const restored = (history ?? []).map(toMessage);
+      if (history === null) {
+        setHistoryError(true);
+        setIsLoadingHistory(false);
+        return;
+      }
+
+      const restored = history.map(toMessage);
       setMessages(
         restored.length > 0 ? restored : [getWelcomeMessage()],
       );
@@ -207,6 +215,11 @@ export function AiChatPage() {
 
     return () => {
       isMounted = false;
+    };
+  }, [historyAttempt]);
+
+  useEffect(() => {
+    return () => {
       abortControllerRef.current?.abort();
     };
   }, []);
@@ -363,6 +376,30 @@ export function AiChatPage() {
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
+
+      {historyError && (
+        <div className="shrink-0 px-4 pb-1">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3">
+            <p className="min-w-0 flex-1 text-sm font-medium text-destructive">
+              Não foi possível carregar o histórico de mensagens.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setIsLoadingHistory(true);
+                setHistoryError(false);
+                setHistoryAttempt((attempt) => attempt + 1);
+              }}
+              className={cn(
+                "shrink-0 rounded-lg bg-destructive/20 px-3 py-1.5 text-sm font-semibold text-destructive",
+                "transition-colors hover:bg-destructive/30",
+              )}
+            >
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      )}
 
       {isBalanceEmpty && (
         <div className="shrink-0 px-4 pb-1">
