@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from dataclasses import dataclass
@@ -277,7 +278,9 @@ async def _run_conversation(
             state['tools_executed'] = True
             messages.append({'role': 'assistant', **message})
             for call in tool_calls:
-                result = _execute_tool_call(execute_tool, call)
+                result = await asyncio.to_thread(
+                    _execute_tool_call, execute_tool, call
+                )
                 messages.append({
                     'role': 'tool',
                     'tool_call_id': str(call.get('id') or ''),

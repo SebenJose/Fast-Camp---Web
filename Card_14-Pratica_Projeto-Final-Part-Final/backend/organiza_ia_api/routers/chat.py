@@ -267,28 +267,19 @@ def list_messages(
     )
 
 
-@router.post(
-    '/messages',
-    status_code=HTTPStatus.CREATED,
-    response_model=ChatMessagesResponse,
-)
-def send_message(
-    data: SendChatMessageRequest,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-) -> ChatMessagesResponse:
-    schedule = schedule_service.get_or_create_schedule(
-        session, current_user.id
-    )
+def _prepare_conversation(
+    session: Session, user_id, content: str
+) -> tuple[Schedule, list[dict[str, Any]], ChatMessagePublic]:
+    schedule = schedule_service.get_or_create_schedule(session, user_id)
 
-    current_user = session.scalar(
+    user = session.scalar(
         select(User)
-        .where(User.id == current_user.id)
+        .where(User.id == user_id)
         .with_for_update()
         .execution_options(populate_existing=True)
     )
 
-    if current_user.token_balance <= 0:
+    if user.token_balance <= 0:
         session.rollback()
         raise HTTPException(
             status_code=HTTPStatus.PAYMENT_REQUIRED,
@@ -299,7 +290,7 @@ def send_message(
         select(func.count())
         .select_from(ChatMessage)
         .where(
-            ChatMessage.user_id == current_user.id,
+            ChatMessage.user_id == user_id,
             ChatMessage.role == 'user',
             ChatMessage.created_at >= utcnow() - RATE_LIMIT_WINDOW,
         )
@@ -311,9 +302,7 @@ def send_message(
             detail=RATE_LIMITED_MESSAGE,
         )
 
-    history = _load_recent_messages(
-        session, current_user.id, HISTORY_CONTEXT_LIMIT
-    )
+    history = _load_recent_messages(session, user_id, HISTORY_CONTEXT_LIMIT)
     day_range_note = (
         'Intervalo visível do dia deste usuário: '
         f'{_minutes_to_time(schedule.day_range_start_minutes)} às '
@@ -324,44 +313,18 @@ def send_message(
         {'role': message.role, 'content': message.content}
         for message in history
     )
-    payload.append({'role': 'user', 'content': data.content})
+    payload.append({'role': 'user', 'content': content})
 
-    user_id = current_user.id
-    user_message = ChatMessage(
-        user_id=user_id, role='user', content=data.content
-    )
+    user_message = ChatMessage(user_id=user_id, role='user', content=content)
     session.add(user_message)
     session.flush()
-    user_public = _to_public(user_message)
 
-    try:
-        reply = asyncio.run(
-            asyncio.wait_for(
-                ai.generate_reply(
-                    payload, _build_tool_executor(session, schedule)
-                ),
-                timeout=get_settings().AI_TOTAL_TIMEOUT_SECONDS,
-            )
-        )
-    except TimeoutError:
-        session.rollback()
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_GATEWAY,
-            detail=AI_UNAVAILABLE_MESSAGE,
-        )
-    except ai.AiNotConfiguredError:
-        session.rollback()
-        raise HTTPException(
-            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-            detail=AI_NOT_CONFIGURED_MESSAGE,
-        )
-    except ai.AiServiceError:
-        session.rollback()
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_GATEWAY,
-            detail=AI_UNAVAILABLE_MESSAGE,
-        )
+    return schedule, payload, _to_public(user_message)
 
+
+def _persist_reply(
+    session: Session, user_id, reply: ai.AiReply
+) -> tuple[ChatMessagePublic, int]:
     assistant_message = ChatMessage(
         user_id=user_id,
         role='assistant',
@@ -377,6 +340,56 @@ def send_message(
     session.flush()
     assistant_public = _to_public(assistant_message)
     session.commit()
+
+    return assistant_public, balance
+
+
+@router.post(
+    '/messages',
+    status_code=HTTPStatus.CREATED,
+    response_model=ChatMessagesResponse,
+)
+async def send_message(
+    data: SendChatMessageRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> ChatMessagesResponse:
+    # O banco fica fora do event loop (to_thread): o SELECT FOR UPDATE
+    # pode esperar o lock por até um ciclo inteiro de IA de outra request
+    # do mesmo usuário, e no loop isso travaria o servidor todo.
+    schedule, payload, user_public = await asyncio.to_thread(
+        _prepare_conversation, session, current_user.id, data.content
+    )
+
+    try:
+        reply = await asyncio.wait_for(
+            ai.generate_reply(
+                payload, _build_tool_executor(session, schedule)
+            ),
+            timeout=get_settings().AI_TOTAL_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        await asyncio.to_thread(session.rollback)
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_GATEWAY,
+            detail=AI_UNAVAILABLE_MESSAGE,
+        )
+    except ai.AiNotConfiguredError:
+        await asyncio.to_thread(session.rollback)
+        raise HTTPException(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            detail=AI_NOT_CONFIGURED_MESSAGE,
+        )
+    except ai.AiServiceError:
+        await asyncio.to_thread(session.rollback)
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_GATEWAY,
+            detail=AI_UNAVAILABLE_MESSAGE,
+        )
+
+    assistant_public, balance = await asyncio.to_thread(
+        _persist_reply, session, current_user.id, reply
+    )
 
     return ChatMessagesResponse(
         messages=[user_public, assistant_public],
